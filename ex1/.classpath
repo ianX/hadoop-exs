@@ -2,13 +2,6 @@
 <classpath>
 	<classpathentry kind="src" path="src"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
-	<classpathentry kind="lib" path="/home/ian/Developer/hadoop-1.0.3/hadoop-core-1.0.3.jar" sourcepath="/home/ian/Developer/hadoop-1.0.3/src/mapred"/>
-	<classpathentry kind="lib" path="/home/ian/Developer/hadoop-1.0.3/hadoop-ant-1.0.3.jar" sourcepath="/home/ian/Developer/hadoop-1.0.3/src/ant"/>
-	<classpathentry kind="lib" path="/home/ian/Developer/hadoop-1.0.3/hadoop-client-1.0.3.jar"/>
-	<classpathentry kind="lib" path="/home/ian/Developer/hadoop-1.0.3/hadoop-examples-1.0.3.jar"/>
-	<classpathentry kind="lib" path="/home/ian/Developer/hadoop-1.0.3/hadoop-minicluster-1.0.3.jar"/>
-	<classpathentry kind="lib" path="/home/ian/Developer/hadoop-1.0.3/hadoop-test-1.0.3.jar"/>
-	<classpathentry kind="lib" path="/home/ian/Developer/hadoop-1.0.3/hadoop-tools-1.0.3.jar" sourcepath="/home/ian/Developer/hadoop-1.0.3/src/tools"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.USER_LIBRARY/hadoop"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>
