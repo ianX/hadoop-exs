@@ -12,26 +12,20 @@ import org.apache.hadoop.io.compress.CompressionCodecFactory;
 import org.apache.hadoop.mapred.FileSplit;
 import org.apache.hadoop.mapred.RecordReader;
 import org.apache.hadoop.util.LineReader;
-import org.apache.commons.logging.LogFactory;
-import org.apache.commons.logging.Log;
 
 public class MyRecordReader implements RecordReader<LongWritable, Text> {
-	private static final Log LOG = LogFactory.getLog(MyRecordReader.class
-			.getName());
-
 	private CompressionCodecFactory compressionCodecs = null;
 	private long start;
 	private long pos;
 	private long end;
-	private long lineNumber;
 	private LineReader in;
 	int maxLineLength;
+	private boolean hasNext = true;
 
 	public MyRecordReader(Configuration job, FileSplit split)
 			throws IOException {
 		this.maxLineLength = job.getInt("mapred.linerecordreader.maxlength",
 				Integer.MAX_VALUE);
-		lineNumber = 0;
 		start = split.getStart();
 		end = start + split.getLength();
 		final Path file = split.getPath();
@@ -64,7 +58,6 @@ public class MyRecordReader implements RecordReader<LongWritable, Text> {
 			int maxLineLength) {
 		this.maxLineLength = maxLineLength;
 		this.in = new LineReader(in);
-		this.lineNumber = 0;
 		this.start = offset;
 		this.pos = offset;
 		this.end = endOffset;
@@ -75,7 +68,6 @@ public class MyRecordReader implements RecordReader<LongWritable, Text> {
 		this.maxLineLength = job.getInt("mapred.linerecordreader.maxlength",
 				Integer.MAX_VALUE);
 		this.in = new LineReader(in, job);
-		this.lineNumber = 0;
 		this.start = offset;
 		this.pos = offset;
 		this.end = endOffset;
@@ -93,26 +85,28 @@ public class MyRecordReader implements RecordReader<LongWritable, Text> {
 	public synchronized boolean next(LongWritable key, Text value)
 			throws IOException {
 
+		if(!hasNext){
+			key = null;
+			value = null;
+			return false;
+		}
+		
+		Text val = new Text();
+		StringBuffer sb = new StringBuffer();
+		key.set(pos);
 		while (pos < end) {
-			key.set(lineNumber++);
 
-			int newSize = in.readLine(value, maxLineLength,
+			int newSize = in.readLine(val, maxLineLength,
 					Math.max((int) Math.min(Integer.MAX_VALUE, end - pos),
 							maxLineLength));
-			if (newSize == 0) {
-				return false;
-			}
 			pos += newSize;
-			if (newSize < maxLineLength) {
-				return true;
-			}
-
-			// line too long. try again
-			LOG.info("Skipped line of size " + newSize + " at pos "
-					+ (pos - newSize));
+			
+			sb.append(val.toString());
 		}
-
-		return false;
+		
+		value.set(sb.toString());
+		hasNext = false;
+		return true;
 	}
 
 	/**

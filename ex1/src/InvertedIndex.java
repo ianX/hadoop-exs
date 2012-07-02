@@ -19,6 +19,7 @@ import org.apache.hadoop.mapred.FileSplit;
 import org.apache.hadoop.mapred.InputSplit;
 import org.apache.hadoop.mapred.JobClient;
 import org.apache.hadoop.mapred.JobConf;
+import org.apache.hadoop.mapred.JobContext;
 import org.apache.hadoop.mapred.MapReduceBase;
 import org.apache.hadoop.mapred.Mapper;
 import org.apache.hadoop.mapred.OutputCollector;
@@ -103,7 +104,7 @@ public class InvertedIndex extends Configured implements Tool {
 					continue;
 				}
 				outKey.set(token + ":" + fname);
-				outVal.set("1" + ":(" + key.get() + "," + (pos++) + ")");
+				outVal.set("1" + ":" + (pos++));
 				output.collect(outKey, outVal);
 			}
 		}
@@ -166,8 +167,8 @@ public class InvertedIndex extends Configured implements Tool {
 		conf.setMapperClass(Map.class);
 		conf.setCombinerClass(Combine.class);
 		conf.setReducerClass(Reduce.class);
-		conf.setMapOutputKeyClass(Text.class);
-		conf.setMapOutputValueClass(Text.class);
+		// conf.setMapOutputKeyClass(Text.class);
+		// conf.setMapOutputValueClass(Text.class);
 		conf.setOutputKeyClass(Text.class);
 		conf.setOutputValueClass(Text.class);
 		conf.setInputFormat(MyInputFormat.class);

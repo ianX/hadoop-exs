@@ -13,12 +13,13 @@ import org.apache.hadoop.mapred.FileInputFormat;
 import org.apache.hadoop.mapred.FileOutputFormat;
 import org.apache.hadoop.mapred.JobClient;
 import org.apache.hadoop.mapred.JobConf;
-import org.apache.hadoop.mapred.KeyValueTextInputFormat;
 import org.apache.hadoop.mapred.MapReduceBase;
 import org.apache.hadoop.mapred.Mapper;
 import org.apache.hadoop.mapred.OutputCollector;
 import org.apache.hadoop.mapred.Reducer;
 import org.apache.hadoop.mapred.Reporter;
+import org.apache.hadoop.mapred.SequenceFileAsTextInputFormat;
+import org.apache.hadoop.mapred.SequenceFileOutputFormat;
 import org.apache.hadoop.util.Tool;
 
 public class StopWord extends Configured implements Tool {
@@ -122,9 +123,10 @@ public class StopWord extends Configured implements Tool {
 		wc.setReducerClass(Reduce.class);
 		wc.setOutputKeyClass(Text.class);
 		wc.setOutputValueClass(IntWritable.class);
+		wc.setOutputFormat(SequenceFileOutputFormat.class);
 		FileInputFormat.setInputPaths(wc, new Path(args[0]));
 		Path tmp = new Path(args[2] + "_tmp");
-		FileOutputFormat.setOutputPath(wc, tmp);
+		SequenceFileOutputFormat.setOutputPath(wc, tmp);
 		JobClient.runJob(wc);
 
 		int total = wc.getInt("wordcount.word.total", 1000000);
@@ -135,8 +137,8 @@ public class StopWord extends Configured implements Tool {
 		sw.setOutputKeyClass(Text.class);
 		sw.setOutputValueClass(NullWritable.class);
 		sw.setMapperClass(SortMap.class);
-		sw.setInputFormat(KeyValueTextInputFormat.class);
-		KeyValueTextInputFormat.setInputPaths(sw, tmp);
+		sw.setInputFormat(SequenceFileAsTextInputFormat.class);
+		SequenceFileAsTextInputFormat.setInputPaths(sw, tmp);
 		FileOutputFormat.setOutputPath(sw, new Path(args[2]));
 		JobClient.runJob(sw);
 
