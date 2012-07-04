@@ -81,16 +81,16 @@ public class MyRecordReader implements RecordReader<LongWritable, Text> {
 		return new Text();
 	}
 
-	/** Read a line. */
+	/** Read all lines. */
 	public synchronized boolean next(LongWritable key, Text value)
 			throws IOException {
 
-		if(!hasNext){
+		if (!hasNext) {
 			key = null;
 			value = null;
 			return false;
 		}
-		
+
 		Text val = new Text();
 		StringBuffer sb = new StringBuffer();
 		key.set(pos);
@@ -100,10 +100,10 @@ public class MyRecordReader implements RecordReader<LongWritable, Text> {
 					Math.max((int) Math.min(Integer.MAX_VALUE, end - pos),
 							maxLineLength));
 			pos += newSize;
-			
+
 			sb.append(val.toString());
 		}
-		
+
 		value.set(sb.toString());
 		hasNext = false;
 		return true;

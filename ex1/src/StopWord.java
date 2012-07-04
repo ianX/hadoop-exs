@@ -1,8 +1,16 @@
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
+import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
+import java.util.Random;
 import java.util.StringTokenizer;
 
 import org.apache.hadoop.conf.Configured;
+import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.IntWritable;
@@ -57,12 +65,30 @@ public class StopWord extends Configured implements Tool {
 			Reducer<Text, IntWritable, Text, IntWritable> {
 
 		private JobConf job;
+		private String total_path;
 
 		@Override
 		public void configure(JobConf job) {
 			// TODO Auto-generated method stub
 			this.job = job;
+			total_path = job.get("wordcount.total.path", null);
 			super.configure(job);
+		}
+
+		private void saveTotal(int total) {
+			if (total_path != null) {
+				try {
+					FSDataOutputStream os = FileSystem.get(job).create(
+							new Path(total_path));
+					BufferedWriter bw = new BufferedWriter(
+							new OutputStreamWriter(os.getWrappedStream()));
+					bw.write(Integer.toString(total));
+					bw.close();
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
 		}
 
 		@Override
@@ -75,7 +101,7 @@ public class StopWord extends Configured implements Tool {
 				sum += value.next().get();
 			}
 			if (key.toString().startsWith("!")) {
-				job.setInt("wordcount.word.total", sum);
+				saveTotal(sum);
 				return;
 			}
 			output.collect(key, new IntWritable(sum));
@@ -87,7 +113,7 @@ public class StopWord extends Configured implements Tool {
 			Mapper<Text, Text, Text, NullWritable> {
 
 		private int total = 1;
-		private double threshold = 0.0005;
+		private double threshold = 0.001;
 
 		@Override
 		public void configure(JobConf job) {
@@ -111,25 +137,48 @@ public class StopWord extends Configured implements Tool {
 	@Override
 	public int run(String[] args) throws Exception {
 		// TODO Auto-generated method stub
-		if (args.length < 2 || args.length >3) {
-			System.err.println("Usage: invertedindex <in> <out> [<stopword>]");
-			System.exit(2);
-		} else if (args.length == 2) {
+		List<String> other_args = new ArrayList<String>();
+		for (String s : args) {
+			if (s.contains("-"))
+				continue;
+			other_args.add(s);
+		}
+
+		if (other_args.size() < 2 || other_args.size() > 3) {
+			System.err
+					.println("Usage: invertedindex <in> <out> [<stopword>] [command]");
+			System.exit(-1);
+		} else if (other_args.size() == 2) {
 			return 0;
 		}
 		JobConf wc = new JobConf(getConf(), StopWord.class);
+		if (FileSystem.get(wc).exists(new Path(other_args.get(2)))) {
+			return 0;
+		}
 		wc.setJobName("wordcount");
 		wc.setMapperClass(Map.class);
 		wc.setReducerClass(Reduce.class);
 		wc.setOutputKeyClass(Text.class);
 		wc.setOutputValueClass(IntWritable.class);
 		wc.setOutputFormat(SequenceFileOutputFormat.class);
-		FileInputFormat.setInputPaths(wc, new Path(args[0]));
-		Path tmp = new Path(args[2] + "_tmp");
+		FileInputFormat.setInputPaths(wc, new Path(other_args.get(0)));
+		Path tmp = new Path(other_args.get(2) + "_tmp_"
+				+ Integer.toString(new Random().nextInt(Integer.MAX_VALUE)));
 		SequenceFileOutputFormat.setOutputPath(wc, tmp);
+		Path totalPath = new Path(other_args.get(2) + "_total_tmp_"
+				+ Integer.toString(new Random().nextInt(Integer.MAX_VALUE)));
+		wc.set("wordcount.total.path", totalPath.toString());
+
 		JobClient.runJob(wc);
 
-		int total = wc.getInt("wordcount.word.total", 1000000);
+		FileSystem fs = FileSystem.get(wc);
+		fs.deleteOnExit(totalPath);
+
+		BufferedReader br = new BufferedReader(new InputStreamReader(
+				fs.open(totalPath)));
+
+		int total = Integer.parseInt(br.readLine());
+		br.close();
 
 		JobConf sw = new JobConf(getConf(), StopWord.class);
 		sw.setJobName("stopword");
@@ -139,7 +188,7 @@ public class StopWord extends Configured implements Tool {
 		sw.setMapperClass(SortMap.class);
 		sw.setInputFormat(SequenceFileAsTextInputFormat.class);
 		SequenceFileAsTextInputFormat.setInputPaths(sw, tmp);
-		FileOutputFormat.setOutputPath(sw, new Path(args[2]));
+		FileOutputFormat.setOutputPath(sw, new Path(other_args.get(2)));
 		JobClient.runJob(sw);
 
 		FileSystem.get(wc).delete(tmp, true);

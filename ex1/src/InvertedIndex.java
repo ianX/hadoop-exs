@@ -1,25 +1,36 @@
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Set;
 import java.util.StringTokenizer;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
 import org.apache.hadoop.filecache.DistributedCache;
+import org.apache.hadoop.fs.FSDataInputStream;
+import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapred.FileOutputFormat;
 import org.apache.hadoop.mapred.FileSplit;
 import org.apache.hadoop.mapred.InputSplit;
 import org.apache.hadoop.mapred.JobClient;
 import org.apache.hadoop.mapred.JobConf;
-import org.apache.hadoop.mapred.JobContext;
+import org.apache.hadoop.mapred.KeyValueTextInputFormat;
 import org.apache.hadoop.mapred.MapReduceBase;
 import org.apache.hadoop.mapred.Mapper;
 import org.apache.hadoop.mapred.OutputCollector;
@@ -54,22 +65,43 @@ public class InvertedIndex extends Configured implements Tool {
 		private boolean useStopword = false;
 		private Set<String> stopword = new HashSet<String>();
 		private String fname = null;
+		private int docId = -1;
 
 		public void configure(JobConf job) {
-			fname = job.get("map.input.file");
-			fname = fname.substring(fname.lastIndexOf('/') + 1);
-			if (useStopword = job.getBoolean("invertedindex.use.stopword",
-					false)) {
-				Path[] stopwordFiles = new Path[0];
-				try {
-					stopwordFiles = DistributedCache.getLocalCacheFiles(job);
+			try {
+
+				fname = job.get("map.input.file");
+				fname = fname.substring(fname.lastIndexOf('/') + 1);
+
+				String files = job.get("invertedindex.filename.map");
+
+				FSDataInputStream is = FileSystem.get(job)
+						.open(new Path(files));
+				BufferedReader br = new BufferedReader(
+						new InputStreamReader(is));
+				String pair;
+				while ((pair = br.readLine()) != null) {
+					String[] token = pair.split(":");
+					if (fname.equals(token[1])) {
+						docId = Integer.parseInt(token[0]);
+						break;
+					}
+				}
+
+				br.close();
+
+				if (useStopword = job.getBoolean("invertedindex.use.stopword",
+						false)) {
+					Path[] stopwordFiles = DistributedCache
+							.getLocalCacheFiles(job);
 					for (Path stopwordFile : stopwordFiles) {
 						parseStopwordFile(stopwordFile);
 					}
-				} catch (IOException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
+
 				}
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
 			}
 		}
 
@@ -80,10 +112,9 @@ public class InvertedIndex extends Configured implements Tool {
 			while ((word = fis.readLine()) != null) {
 				stopword.add(word);
 			}
+			fis.close();
 		}
 
-		// private String pattern =
-		// "!|\"|#|$|%|&|(|)|\\*|\\+|,|-|\\.|/|:|;|<|=|>|\\?|@|[|\\|]|\\^|_|`|\\{|\\|\\}|~|\'s";
 		private String pattern = "\\p{Punct}";
 		private Text outKey = new Text();
 		private Text outVal = new Text();
@@ -93,7 +124,7 @@ public class InvertedIndex extends Configured implements Tool {
 				OutputCollector<Text, Text> output, Reporter reporter)
 				throws IOException {
 			String valTmp = value.toString().toLowerCase()
-					.replaceAll("\'s", "");
+					.replaceAll("\'s ", " ");
 			StringTokenizer tokens = new StringTokenizer(valTmp.replaceAll(
 					pattern, " "));
 			int pos = 0;
@@ -103,7 +134,10 @@ public class InvertedIndex extends Configured implements Tool {
 					pos++;
 					continue;
 				}
-				outKey.set(token + ":" + fname);
+				if (docId != -1)
+					outKey.set(token + ":" + docId);
+				else
+					outKey.set(token + ":" + fname);
 				outVal.set("1" + ":" + (pos++));
 				output.collect(outKey, outVal);
 			}
@@ -128,7 +162,7 @@ public class InvertedIndex extends Configured implements Tool {
 				pos.append(":" + vals[1]);
 			}
 			outKey.set(keys[0]);
-			outVal.set(keys[1] + "[" + sum + "]" + pos);
+			outVal.set("<" + keys[1] + ">" + "[" + sum + "]" + pos);
 			output.collect(outKey, outVal);
 		}
 	}
@@ -150,31 +184,224 @@ public class InvertedIndex extends Configured implements Tool {
 		}
 	}
 
+	public static class SearchMap extends MapReduceBase implements
+			Mapper<Text, Text, Text, NullWritable> {
+
+		private HashMap<String, String> filemap = new HashMap<String, String>();
+		private String word;
+
+		@Override
+		public void configure(JobConf job) {
+			// TODO Auto-generated method stub
+			word = job.get("search.word");
+			try {
+				Path[] filemapcache = DistributedCache.getLocalCacheFiles(job);
+				for (Path file : filemapcache) {
+					BufferedReader fis = new BufferedReader(new FileReader(
+							file.toString()));
+					parseFileMap(fis, filemap);
+				}
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+
+		@Override
+		public void map(Text key, Text value,
+				OutputCollector<Text, NullWritable> output, Reporter reporter)
+				throws IOException {
+			// TODO Auto-generated method stub
+			if (key.toString().equals(word)) {
+				String outVal = parseOutValue(value.toString(), filemap);
+				output.collect(new Text(outVal), NullWritable.get());
+			}
+		}
+
+	}
+
+	public static void parseFileMap(BufferedReader fis,
+			HashMap<String, String> filemap) throws IOException {
+		String line = null;
+		while ((line = fis.readLine()) != null) {
+			String[] pair = line.split(":");
+			filemap.put(pair[0], pair[1]);
+		}
+		fis.close();
+	}
+
+	public static String parseOutValue(String value,
+			HashMap<String, String> filemap) {
+		String val = value.replace("->", "");
+		Pattern p = Pattern.compile("<([0-9]*)>");
+		Matcher m = p.matcher(val);
+		String doc;
+		while (m.find()) {
+			doc = m.group(1);
+			if (filemap.containsKey(doc)) {
+				doc = filemap.get(doc);
+			}
+			val = m.replaceFirst(doc);
+			m = p.matcher(val);
+			// System.out.println(doc + "  " + val);
+		}
+		String outVal = val.trim().replaceAll(" *, *", "\n");
+		return outVal;
+	}
+
+	public static void parseInvertedIndex(BufferedReader fis,
+			HashMap<String, String> invertedindex) throws IOException {
+		String line = null;
+		while ((line = fis.readLine()) != null) {
+			String[] pair = line.split("\t");
+			invertedindex.put(pair[0], pair[1]);
+		}
+		fis.close();
+	}
+
 	@Override
 	public int run(String[] args) throws Exception {
 		// TODO Auto-generated method stub
-		JobConf conf = new JobConf(getConf(), InvertedIndex.class);
-		if (args.length == 3) {
-			FileStatus[] filestatus = FileSystem.get(conf).globStatus(
-					new Path(args[2] + "/p*"));
-			for (int i = 0; i < filestatus.length; i++) {
-				DistributedCache.addCacheFile(filestatus[i].getPath().toUri(),
-						conf);
+		Path inpath = null;
+		Path outpath = null;
+		Path filemap = null;
+		boolean isSearch = false;
+		boolean useMR = false;
+		boolean useFilemap = false;
+		boolean indexonly = false;
+
+		List<String> other_args = new ArrayList<String>();
+		for (int i = 0; i < args.length; i++) {
+			if (args[i].equals("-search")) {
+				isSearch = true;
+			} else if (args[i].toLowerCase().equals("-usemr")) {
+				useMR = true;
+			} else if (args[i].toLowerCase().equals("-filemap")) {
+				filemap = new Path(args[++i]);
+				useFilemap = true;
+			} else if (args[i].toLowerCase().equals("-indexonly")) {
+				indexonly = true;
+			} else if (args[i].contains("-")) {
+				continue;
 			}
-			conf.setBoolean("invertedindex.use.stopword", true);
+			other_args.add(args[i]);
 		}
-		conf.setJobName("inverted index");
-		conf.setMapperClass(Map.class);
-		conf.setCombinerClass(Combine.class);
-		conf.setReducerClass(Reduce.class);
-		// conf.setMapOutputKeyClass(Text.class);
-		// conf.setMapOutputValueClass(Text.class);
-		conf.setOutputKeyClass(Text.class);
-		conf.setOutputValueClass(Text.class);
-		conf.setInputFormat(MyInputFormat.class);
-		MyInputFormat.setInputPaths(conf, new Path(args[0]));
-		FileOutputFormat.setOutputPath(conf, new Path(args[1]));
-		JobClient.runJob(conf);
+
+		inpath = new Path(other_args.get(0));
+		outpath = new Path(other_args.get(1));
+		if (!useFilemap)
+			filemap = new Path(inpath.getParent().toString() + "/filemap.txt");
+
+		if (!isSearch) {
+			JobConf conf = new JobConf(getConf(), InvertedIndex.class);
+			if (args.length == 3) {
+				Path stop_word_path = new Path(other_args.get(2));
+				if (FileSystem.get(conf).isFile(stop_word_path)) {
+					DistributedCache.addCacheFile(stop_word_path.toUri(), conf);
+				} else {
+					FileStatus[] filestatus = FileSystem.get(conf).globStatus(
+							new Path(other_args.get(2) + "/p*"));
+					for (FileStatus fs : filestatus) {
+						DistributedCache.addCacheFile(fs.getPath().toUri(),
+								conf);
+					}
+				}
+				conf.setBoolean("invertedindex.use.stopword", true);
+			}
+			conf.setJobName("inverted index");
+			conf.setMapperClass(Map.class);
+			conf.setCombinerClass(Combine.class);
+			conf.setReducerClass(Reduce.class);
+			conf.setOutputKeyClass(Text.class);
+			conf.setOutputValueClass(Text.class);
+			conf.setInputFormat(MyInputFormat.class);
+
+			MyInputFormat.setInputPaths(conf, inpath);
+			FileOutputFormat.setOutputPath(conf, outpath);
+
+			FileSystem fs = FileSystem.get(conf);
+			FSDataOutputStream os = fs.create(filemap);
+
+			FileStatus[] inputnames = fs.globStatus(new Path(other_args.get(0)
+					+ "/*"));
+			BufferedWriter br = new BufferedWriter(new OutputStreamWriter(os));
+			for (int i = 0; i < inputnames.length; i++) {
+				br.append(i + ":" + inputnames[i].getPath().getName());
+				br.newLine();
+			}
+			br.close();
+			conf.set("invertedindex.filename.map", filemap.toString());
+			JobClient.runJob(conf);
+		}
+
+		if (indexonly)
+			return 0;
+
+		String word;
+		BufferedReader ibr = new BufferedReader(
+				new InputStreamReader(System.in));
+		if (useMR) {
+			System.out.print("input a word(or 'q' to exit): ");
+			Path searchOutput = new Path(outpath.getParent().toString()
+					+ "/search");
+			while (!(word = ibr.readLine()).equals("q")) {
+				JobConf searchJob = new JobConf(getConf(), InvertedIndex.class);
+				DistributedCache.addCacheFile(filemap.toUri(), searchJob);
+				searchJob.setJobName("Search");
+				searchJob.set("search.word", word.toLowerCase());
+				searchJob.setMapperClass(SearchMap.class);
+				searchJob.setInputFormat(KeyValueTextInputFormat.class);
+				searchJob.setOutputKeyClass(Text.class);
+				searchJob.setOutputValueClass(NullWritable.class);
+				KeyValueTextInputFormat.setInputPaths(searchJob, outpath);
+				FileOutputFormat.setOutputPath(searchJob, searchOutput);
+				JobClient.runJob(searchJob);
+				FileSystem sfs = FileSystem.get(searchJob);
+				FileStatus[] sout = sfs.globStatus(new Path(searchOutput
+						.toString() + "/p*"));
+				for (FileStatus sfile : sout) {
+					FSDataInputStream sin = FileSystem.get(searchJob).open(
+							sfile.getPath());
+					BufferedReader sbr = new BufferedReader(
+							new InputStreamReader(sin));
+					String pr;
+					while ((pr = sbr.readLine()) != null)
+						System.out.println(pr);
+					sbr.close();
+				}
+				sfs.delete(searchOutput, true);
+				System.out.print("input a word(or 'q' to exit): ");
+			}
+		} else {
+			FileSystem fs = FileSystem.get(new Configuration());
+			HashMap<String, String> fidpair = new HashMap<String, String>();
+			HashMap<String, String> invertedindex = new HashMap<String, String>();
+			FSDataInputStream is = fs.open(filemap);
+			BufferedReader br = new BufferedReader(new InputStreamReader(is));
+			parseFileMap(br, fidpair);
+			br.close();
+			FileStatus[] iis = fs.globStatus(new Path(outpath.toString()
+					+ "/p*"));
+ 
+			for (FileStatus ii : iis) {
+				is = fs.open(ii.getPath());
+				br = new BufferedReader(new InputStreamReader(is));
+				parseInvertedIndex(br, invertedindex);
+				br.close();
+			}
+
+			System.out.print("input a word(or 'q' to exit): ");
+			String line;
+			while (!(line = ibr.readLine()).equals("q")) {
+				if (invertedindex.containsKey(line)) {
+					String val = invertedindex.get(line);
+					String outVal = parseOutValue(val, fidpair);
+					System.out.println(outVal);
+				}
+				System.out.print("input a word(or 'q' to exit): ");
+			}
+		}
+		ibr.close();
 		return 0;
 	}
 

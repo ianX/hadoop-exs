@@ -44,8 +44,8 @@ public class PageRank extends Configured implements Tool {
 				throws IOException {
 			// TODO Auto-generated method stub
 			String val = value.toString().trim();
-			Pattern pt = Pattern.compile("&lttitle&(.*)&lt/title&gt");
-			Pattern pl = Pattern.compile("\\[\\[(.*)\\]\\]");
+			Pattern pt = Pattern.compile("&lttitle&gt([A-Za-z0-9 ]*)&lt/title&gt");
+			Pattern pl = Pattern.compile("\\[\\[([A-Za-z0-9 ]*)\\]\\]");
 			Matcher mt = pt.matcher(val);
 			Matcher ml = pl.matcher(val);
 			if (!mt.find())
