@@ -26,7 +26,7 @@ import org.apache.hadoop.mapred.Mapper;
 import org.apache.hadoop.mapred.OutputCollector;
 import org.apache.hadoop.mapred.Reducer;
 import org.apache.hadoop.mapred.Reporter;
-import org.apache.hadoop.mapred.SequenceFileAsTextInputFormat;
+import org.apache.hadoop.mapred.SequenceFileInputFormat;
 import org.apache.hadoop.mapred.SequenceFileOutputFormat;
 import org.apache.hadoop.util.Tool;
 
@@ -109,10 +109,10 @@ public class StopWord extends Configured implements Tool {
 
 	}
 
-	public static class SortMap extends MapReduceBase implements
-			Mapper<Text, Text, Text, NullWritable> {
+	public static class StopMap extends MapReduceBase implements
+			Mapper<Text, IntWritable, Text, NullWritable> {
 
-		private int total = 1;
+		private double total = 1;
 		private double threshold = 0.001;
 
 		@Override
@@ -123,11 +123,11 @@ public class StopWord extends Configured implements Tool {
 		}
 
 		@Override
-		public void map(Text key, Text value,
+		public void map(Text key, IntWritable value,
 				OutputCollector<Text, NullWritable> output, Reporter reporter)
 				throws IOException {
 			// TODO Auto-generated method stub
-			if (Double.parseDouble(value.toString()) / total > threshold) {
+			if (value.get() / total > threshold) {
 				output.collect(key, NullWritable.get());
 			}
 		}
@@ -138,10 +138,14 @@ public class StopWord extends Configured implements Tool {
 	public int run(String[] args) throws Exception {
 		// TODO Auto-generated method stub
 		List<String> other_args = new ArrayList<String>();
-		for (String s : args) {
-			if (s.contains("-"))
+		for (int i = 0; i < args.length; i++) {
+			if (args[i].toLowerCase().equals("-filemap")) {
+				i++;
 				continue;
-			other_args.add(s);
+			}
+			if (args[i].contains("-"))
+				continue;
+			other_args.add(args[i]);
 		}
 
 		if (other_args.size() < 2 || other_args.size() > 3) {
@@ -185,9 +189,9 @@ public class StopWord extends Configured implements Tool {
 		sw.setInt("wordcount.word.total", total);
 		sw.setOutputKeyClass(Text.class);
 		sw.setOutputValueClass(NullWritable.class);
-		sw.setMapperClass(SortMap.class);
-		sw.setInputFormat(SequenceFileAsTextInputFormat.class);
-		SequenceFileAsTextInputFormat.setInputPaths(sw, tmp);
+		sw.setMapperClass(StopMap.class);
+		sw.setInputFormat(SequenceFileInputFormat.class);
+		SequenceFileInputFormat.setInputPaths(sw, tmp);
 		FileOutputFormat.setOutputPath(sw, new Path(other_args.get(2)));
 		JobClient.runJob(sw);
 

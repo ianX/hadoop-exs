@@ -23,7 +23,6 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.LongWritable;
-import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapred.FileOutputFormat;
 import org.apache.hadoop.mapred.FileSplit;
@@ -130,7 +129,8 @@ public class InvertedIndex extends Configured implements Tool {
 			int pos = 0;
 			while (tokens.hasMoreTokens()) {
 				String token = tokens.nextToken();
-				if (useStopword && stopword.contains(token)) {
+				if (useStopword
+						&& (stopword.contains(token) || token.matches("[0-9]*"))) {
 					pos++;
 					continue;
 				}
@@ -185,15 +185,15 @@ public class InvertedIndex extends Configured implements Tool {
 	}
 
 	public static class SearchMap extends MapReduceBase implements
-			Mapper<Text, Text, Text, NullWritable> {
+			Mapper<Text, Text, Text, Text> {
 
 		private HashMap<String, String> filemap = new HashMap<String, String>();
-		private String word;
+		private String[] words;
 
 		@Override
 		public void configure(JobConf job) {
 			// TODO Auto-generated method stub
-			word = job.get("search.word");
+			words = job.get("search.word").split("[ \t]+");
 			try {
 				Path[] filemapcache = DistributedCache.getLocalCacheFiles(job);
 				for (Path file : filemapcache) {
@@ -209,12 +209,50 @@ public class InvertedIndex extends Configured implements Tool {
 
 		@Override
 		public void map(Text key, Text value,
-				OutputCollector<Text, NullWritable> output, Reporter reporter)
+				OutputCollector<Text, Text> output, Reporter reporter)
 				throws IOException {
 			// TODO Auto-generated method stub
-			if (key.toString().equals(word)) {
-				String outVal = parseOutValue(value.toString(), filemap);
-				output.collect(new Text(outVal), NullWritable.get());
+			for (String word : words) {
+				if (key.toString().equals(word)) {
+					String[] outVals = parseOutValue(value.toString(), filemap)
+							.split("\n");
+					for (String val : outVals) {
+						String outkey = val.substring(0, val.indexOf('['));
+						String outval = word + "::"
+								+ val.substring(val.indexOf(':') + 1);
+						output.collect(new Text(outkey), new Text(outval));
+					}
+					break;
+				}
+			}
+		}
+
+	}
+
+	public static class SearchReduce extends MapReduceBase implements
+			Reducer<Text, Text, Text, Text> {
+
+		private String[] words;
+
+		@Override
+		public void configure(JobConf job) {
+			// TODO Auto-generated method stub
+			words = job.get("search.word").split("[ \t]+");
+		}
+
+		@Override
+		public void reduce(Text key, Iterator<Text> value,
+				OutputCollector<Text, Text> output, Reporter reporter)
+				throws IOException {
+			// TODO Auto-generated method stub
+			int i = 0;
+			StringBuffer outval = new StringBuffer();
+			while (value.hasNext()) {
+				outval.append("\n\t" + value.next().toString());
+				i++;
+			}
+			if (i == words.length) {
+				output.collect(key, new Text(outval.toString()));
 			}
 		}
 
@@ -243,7 +281,6 @@ public class InvertedIndex extends Configured implements Tool {
 			}
 			val = m.replaceFirst(doc);
 			m = p.matcher(val);
-			// System.out.println(doc + "  " + val);
 		}
 		String outVal = val.trim().replaceAll(" *, *", "\n");
 		return outVal;
@@ -290,7 +327,7 @@ public class InvertedIndex extends Configured implements Tool {
 		inpath = new Path(other_args.get(0));
 		outpath = new Path(other_args.get(1));
 		if (!useFilemap)
-			filemap = new Path(inpath.getParent().toString() + "/filemap.txt");
+			filemap = new Path(outpath.getParent().toString() + "/filemap.txt");
 
 		if (!isSearch) {
 			JobConf conf = new JobConf(getConf(), InvertedIndex.class);
@@ -341,7 +378,7 @@ public class InvertedIndex extends Configured implements Tool {
 		BufferedReader ibr = new BufferedReader(
 				new InputStreamReader(System.in));
 		if (useMR) {
-			System.out.print("input a word(or 'q' to exit): ");
+			System.out.print("input some words(or 'q' to exit): ");
 			Path searchOutput = new Path(outpath.getParent().toString()
 					+ "/search");
 			while (!(word = ibr.readLine()).equals("q")) {
@@ -350,9 +387,10 @@ public class InvertedIndex extends Configured implements Tool {
 				searchJob.setJobName("Search");
 				searchJob.set("search.word", word.toLowerCase());
 				searchJob.setMapperClass(SearchMap.class);
+				searchJob.setReducerClass(SearchReduce.class);
 				searchJob.setInputFormat(KeyValueTextInputFormat.class);
 				searchJob.setOutputKeyClass(Text.class);
-				searchJob.setOutputValueClass(NullWritable.class);
+				searchJob.setOutputValueClass(Text.class);
 				KeyValueTextInputFormat.setInputPaths(searchJob, outpath);
 				FileOutputFormat.setOutputPath(searchJob, searchOutput);
 				JobClient.runJob(searchJob);
@@ -370,7 +408,7 @@ public class InvertedIndex extends Configured implements Tool {
 					sbr.close();
 				}
 				sfs.delete(searchOutput, true);
-				System.out.print("input a word(or 'q' to exit): ");
+				System.out.print("input some words(or 'q' to exit): ");
 			}
 		} else {
 			FileSystem fs = FileSystem.get(new Configuration());
@@ -382,7 +420,6 @@ public class InvertedIndex extends Configured implements Tool {
 			br.close();
 			FileStatus[] iis = fs.globStatus(new Path(outpath.toString()
 					+ "/p*"));
- 
 			for (FileStatus ii : iis) {
 				is = fs.open(ii.getPath());
 				br = new BufferedReader(new InputStreamReader(is));
