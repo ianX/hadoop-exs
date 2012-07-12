@@ -10,40 +10,42 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.DoubleWritable;
 import org.apache.hadoop.io.Text;
-import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Reducer;
-import org.apache.hadoop.mapreduce.lib.input.SequenceFileInputFormat;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.input.KeyValueTextInputFormat;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
 import org.apache.hadoop.util.GenericOptionsParser;
-import org.pagerank.io.LinkWritable;
-import org.pagerank.io.PRArrayWritable;
-import org.pagerank.io.PRWritable;
+
+;
 
 public class PageRank {
 
-	public static class Map extends
-			Mapper<Text, PRArrayWritable, Text, PRWritable> {
+	public static class Map extends Mapper<Text, Text, Text, Text> {
 		private Text outKey = new Text();
-		private LinkWritable outLink = new LinkWritable();
-		private PRWritable outVal = new PRWritable();
+		private Text outVal = new Text();
 
 		@Override
-		public void map(Text key, PRArrayWritable value, Context context)
+		public void map(Text key, Text value, Context context)
 				throws IOException, InterruptedException {
 			// TODO Auto-generated method stub
-			double pr = value.getDouble() / value.getInt();
-			Writable[] links = value.getLinkArray().get();
-			for (Writable w : links) {
-				LinkWritable link = (LinkWritable) w;
-				outKey.set(link.getText());
-				if (link.getBoolean()) {
-					outLink.set(false, key.toString());
-					outVal.set(pr, outLink);
+			String[] vals = value.toString().split("\\[");
+			int outdegree = 1;
+			for (int i = 1; i < vals.length; i++) {
+				if (vals[i].startsWith("1"))
+					outdegree++;
+			}
+
+			double PR = Double.parseDouble(vals[0]) / outdegree;
+			for (int i = 1; i < vals.length; i++) {
+				String[] v = vals[i].split("\\]");
+				outKey.set(v[1]);
+				if (v[0].startsWith("1")) {
+					outVal.set(PR + "[0]" + key.toString());
 				} else {
-					outLink.set(true, key.toString());
-					outVal.set(0, outLink);
+					outVal.set(0 + "[1]" + key.toString());
 				}
 				context.write(outKey, outVal);
 			}
@@ -51,40 +53,49 @@ public class PageRank {
 
 	}
 
-	public static class Reduce extends
-			Reducer<Text, PRWritable, Text, PRArrayWritable> {
+	public static class Reduce extends Reducer<Text, Text, Text, Text> {
 
 		public final static double beta = 0.85;
 
-		private PRArrayWritable outVal = new PRArrayWritable();
-		private List<LinkWritable> links = new ArrayList<LinkWritable>();
+		private Text outVal = new Text();
 
 		@Override
-		public void reduce(Text key, Iterable<PRWritable> value, Context context)
+		public void reduce(Text key, Iterable<Text> value, Context context)
 				throws IOException, InterruptedException {
 			// TODO Auto-generated method stub
 			double pr = 0;
-			int outdegree = 0;
-			links.clear();
-			for (PRWritable val : value) {
-				links.add(val.getLink());
-				pr += val.getDouble();
-				outdegree += val.getLink().getBoolean() ? 1 : 0;
+			StringBuffer vals = new StringBuffer();
+			for (Text val : value) {
+				String[] v = val.toString().split("\\[");
+				vals.append("[" + v[1]);
+				pr += Double.parseDouble(v[0]);
 			}
 			pr = (1 - beta) + beta * pr;
-			outVal.set(pr, outdegree,
-					links.toArray(new LinkWritable[links.size()]));
+			outVal.set(pr + vals.toString());
 			context.write(key, outVal);
 		}
 
 	}
 
-	public static class TransMap extends
-			Mapper<Text, PRArrayWritable, DoubleWritable, Text> {
+	public static class TransReduce extends
+			Reducer<Text, Text, DoubleWritable, Text> {
+
+		public final static double beta = 0.85;
+
+		private DoubleWritable outKey = new DoubleWritable();
+
 		@Override
-		public void map(Text key, PRArrayWritable value, Context context)
+		public void reduce(Text key, Iterable<Text> value, Context context)
 				throws IOException, InterruptedException {
-			context.write(value.getDoubleWritable(), key);
+			// TODO Auto-generated method stub
+			double pr = 0;
+			for (Text val : value) {
+				String[] v = val.toString().split("\\[");
+				pr += Double.parseDouble(v[0]);
+			}
+			pr = (1 - beta) + beta * pr;
+			outKey.set(pr);
+			context.write(outKey, key);
 		}
 	}
 
@@ -105,31 +116,31 @@ public class PageRank {
 				job.setMapperClass(Map.class);
 				job.setReducerClass(Reduce.class);
 				job.setMapOutputKeyClass(Text.class);
-				job.setMapOutputValueClass(PRWritable.class);
+				job.setMapOutputValueClass(Text.class);
 				job.setOutputKeyClass(Text.class);
-				job.setOutputValueClass(PRArrayWritable.class);
-				job.setInputFormatClass(SequenceFileInputFormat.class);
-				job.setOutputFormatClass(SequenceFileOutputFormat.class);
-				SequenceFileInputFormat.addInputPath(job, in);
-				SequenceFileOutputFormat.setOutputPath(job, out);
+				job.setOutputValueClass(Text.class);
+				job.setInputFormatClass(KeyValueTextInputFormat.class);
+				FileInputFormat.addInputPath(job, in);
+				FileOutputFormat.setOutputPath(job, out);
 				job.waitForCompletion(true);
 				if (i > 0)
 					fs.delete(in, true);
 				in = out;
 			}
-			out = new Path(path
-					+ times
-					+ Integer.toString(new Random()
-							.nextInt(Integer.MAX_VALUE)));
-			Job transJob = new Job(conf, "page rank sort");
+			out = new Path(path + times
+					+ Integer.toString(new Random().nextInt(Integer.MAX_VALUE)));
+			Job transJob = new Job(conf, "page rank transfer");
 			transJob.setJarByClass(PageRank.class);
-			transJob.setMapperClass(TransMap.class);
+			transJob.setMapperClass(Map.class);
+			transJob.setReducerClass(TransReduce.class);
+			transJob.setMapOutputKeyClass(Text.class);
+			transJob.setMapOutputValueClass(Text.class);
 			transJob.setOutputKeyClass(DoubleWritable.class);
 			transJob.setOutputValueClass(Text.class);
-			transJob.setInputFormatClass(SequenceFileInputFormat.class);
+			transJob.setInputFormatClass(KeyValueTextInputFormat.class);
 			transJob.setOutputFormatClass(SequenceFileOutputFormat.class);
-			SequenceFileInputFormat.addInputPath(transJob, in);
-			SequenceFileOutputFormat.setOutputPath(transJob, out);
+			FileInputFormat.addInputPath(transJob, in);
+			FileOutputFormat.setOutputPath(transJob, out);
 			transJob.waitForCompletion(true);
 			fs.delete(in, true);
 		} catch (IOException e) {
@@ -148,6 +159,7 @@ public class PageRank {
 	public static void main(String[] args) {
 		boolean newGraph = false;
 		boolean genGraph = false;
+		int times = 1;
 		List<String> leftArgs = new ArrayList<String>();
 		String[] paths = new String[3];
 		try {
@@ -171,6 +183,9 @@ public class PageRank {
 					}
 					leftArgs.clear();
 					break;
+				} else if (otherArgs[i].equals("-n")) {
+					times = Integer.parseInt(otherArgs[++i]);
+					continue;
 				} else if (otherArgs[i].startsWith("-")) {
 					continue;
 				}
@@ -178,7 +193,8 @@ public class PageRank {
 			}
 
 			if (newGraph || genGraph) {
-				if (leftArgs.size() != 1) {
+				if ((genGraph && leftArgs.size() != 1)
+						|| (newGraph && leftArgs.size() != 2)) {
 					System.err
 							.println("usage: pagerank [-newGraph|-genGraph <raw>] <in> [<out>]");
 					System.exit(-2);
@@ -195,7 +211,7 @@ public class PageRank {
 			}
 			paths[1] = leftArgs.get(0);
 			paths[2] = leftArgs.get(1);
-			Path out = PageRank.run(paths[1], conf, 1);
+			Path out = PageRank.run(paths[1], conf, times);
 			PRSort.run(out, paths[2], conf);
 			FileSystem.get(conf).delete(out, true);
 		} catch (IOException e) {

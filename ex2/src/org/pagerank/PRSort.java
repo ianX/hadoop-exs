@@ -10,6 +10,7 @@ import org.apache.hadoop.io.DoubleWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.WritableComparator;
 import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.input.SequenceFileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.partition.InputSampler;
@@ -30,7 +31,6 @@ public class PRSort {
 			return (thisValue < thatValue ? 1 : (thisValue == thatValue ? 0
 					: -1));
 		}
-
 	}
 
 	public static void run(Path in, String out, Configuration conf) {
@@ -42,7 +42,7 @@ public class PRSort {
 			job.setInputFormatClass(SequenceFileInputFormat.class);
 			job.setPartitionerClass(TotalOrderPartitioner.class);
 			job.setSortComparatorClass(ReverseDoubleComparator.class);
-			SequenceFileInputFormat.addInputPath(job, in);
+			FileInputFormat.addInputPath(job, in);
 			FileOutputFormat.setOutputPath(job, new Path(out));
 			InputSampler.Sampler<DoubleWritable, Text> sampler = new InputSampler.RandomSampler<DoubleWritable, Text>(
 					0.1, 10000, 10);
