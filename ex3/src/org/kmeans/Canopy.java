@@ -25,10 +25,16 @@ import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+import org.apache.hadoop.mapreduce.lib.output.MultipleOutputs;
+import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 import org.kmeans.io.MovieInputFormat;
 
 public class Canopy {
-	private static String spliter = "/";
+
+	public static final String spliter = "/";
+	public static final String userSpliter = ",";
+	public static final int strongMark = 8;
+	public static final int weakMark = 2;
 
 	public static class Map extends Mapper<LongWritable, Text, Text, Text> {
 
@@ -38,7 +44,7 @@ public class Canopy {
 				throws IOException, InterruptedException {
 			String val = value.toString();
 			if (val.contains(":")) {
-				int id = Integer.parseInt(val.substring(0, val.indexOf(':'))) % 64;
+				int id = Integer.parseInt(val.substring(0, val.indexOf(':'))) % 128;
 				outKey.set(Integer.toString(id));
 				context.write(outKey, value);
 			}
@@ -49,8 +55,8 @@ public class Canopy {
 
 		private FileSystem fs;
 		private String path;
-		private TreeMap<Integer, HashMap<Integer, Integer>> points = new TreeMap<Integer, HashMap<Integer, Integer>>();
-		private HashMap<Integer, HashMap<Integer, Integer>> centers = new HashMap<Integer, HashMap<Integer, Integer>>();
+		private TreeMap<Integer, HashSet<Integer>> points = new TreeMap<Integer, HashSet<Integer>>();
+		private HashMap<Integer, HashSet<Integer>> centers = new HashMap<Integer, HashSet<Integer>>();
 
 		private Text outKey = new Text();
 		private Text outVal = new Text();
@@ -64,42 +70,22 @@ public class Canopy {
 		private void pickCenter(Context context) {
 			HashSet<Integer> tmp = new HashSet<Integer>();
 			Integer key = -1;
-			Entry<Integer, HashMap<Integer, Integer>> center;
+			Entry<Integer, HashSet<Integer>> center;
 			while ((center = points.higherEntry(key)) != null) {
 				centers.put(center.getKey(), center.getValue());
+				context.setStatus("choose \"mov " + center.getKey().toString()
+						+ "\" as a canopy center");
 				points.remove(center.getKey());
-				Entry<Integer, HashMap<Integer, Integer>> point;
+				Entry<Integer, HashSet<Integer>> point;
 				while ((point = points.higherEntry(key)) != null) {
 					key = point.getKey();
 					tmp.clear();
-					tmp.addAll(center.getValue().keySet());
-					tmp.retainAll(point.getValue().keySet());
-					if (tmp.size() >= 8)
+					tmp.addAll(center.getValue());
+					tmp.retainAll(point.getValue());
+					if (tmp.size() >= strongMark)
 						points.remove(key);
 				}
 				key = -1;
-			}
-		}
-
-		private void saveCenter(String fid) {
-			try {
-				FSDataOutputStream fsds = fs.create(new Path(path + "/center-"
-						+ fid));
-				BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(
-						fsds));
-				for (Entry<Integer, HashMap<Integer, Integer>> center : centers
-						.entrySet()) {
-					bw.append(Integer.toString(center.getKey()));
-					for (Entry<Integer, Integer> uid : center.getValue()
-							.entrySet()) {
-						bw.append(spliter + uid.getKey() + "," + uid.getValue());
-					}
-					bw.newLine();
-				}
-				bw.close();
-			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
 			}
 		}
 
@@ -112,69 +98,90 @@ public class Canopy {
 				if (v.length != 2)
 					continue;
 				String[] uids = v[1].split(spliter);
-				HashMap<Integer, Integer> userID = new HashMap<Integer, Integer>();
+				HashSet<Integer> userID = new HashSet<Integer>();
 				for (String uid : uids) {
-					String[] u = uid.split(",");
+					String[] u = uid.split(userSpliter);
 					if (u.length == 2)
-						userID.put(Integer.parseInt(u[0]),
-								Integer.parseInt(u[1]));
+						userID.add(Integer.parseInt(u[0]));
 				}
 				points.put(Integer.parseInt(v[0]), userID);
 				outKey.set(v[0]);
 				outVal.set(v[1]);
 				context.write(outKey, outVal);
 			}
+			context.setStatus("begin pick canopy centers");
 			pickCenter(context);
-			saveCenter(key.toString());
+			saveCenter(path + "/center-" + key.toString(), fs, this.centers);
 		}
 
 	}
 
 	public static class MarkMap extends Mapper<Text, Text, Text, Text> {
 
-		private HashMap<Integer, HashMap<Integer, Integer>> canopy = new HashMap<Integer, HashMap<Integer, Integer>>();
+		private HashMap<Integer, HashSet<Integer>> canopy = new HashMap<Integer, HashSet<Integer>>();
 		private Set<Integer> tmpSet = new HashSet<Integer>();
+		@SuppressWarnings("rawtypes")
+		private MultipleOutputs mos;
 
 		// private HashMap<String, ArrayList<Boolean>> marks = new
 		// HashMap<String, ArrayList<Boolean>>();
 		// private String markPath;
 
+		@SuppressWarnings({ "unchecked", "rawtypes" })
 		public void setup(Context context) throws IOException,
 				InterruptedException {
 			// markPath = context.getConfiguration()
 			// .get("kmeans.canopy.marks", "");
+			mos = new MultipleOutputs(context);
 			Path[] centers = DistributedCache.getLocalCacheFiles(context
 					.getConfiguration());
 			for (Path center : centers) {
 				readCanopy(center, this.canopy);
 			}
+			context.setStatus("MarkMap: read canopy success");
 		}
 
 		Text outVal = new Text();
 
+		@SuppressWarnings("unchecked")
 		@Override
 		public void map(Text key, Text value, Context context)
 				throws IOException, InterruptedException {
-			HashMap<Integer, Integer> urate = new HashMap<Integer, Integer>();
-			String[] users = value.toString().split(spliter);
+			HashSet<Integer> urate = new HashSet<Integer>();
+			String val = value.toString();
+			String[] users = val.split(spliter);
 			for (String user : users) {
-				String[] r = user.split(",");
+				String[] r = user.split(userSpliter);
 				if (r.length == 2)
-					urate.put(Integer.parseInt(r[0]), Integer.parseInt(r[1]));
+					urate.add(Integer.parseInt(r[0]));
 			}
-			byte[] mark = new byte[this.canopy.size()];
-			for (Entry<Integer, HashMap<Integer, Integer>> center : this.canopy
+			long[] mark = new long[this.canopy.size() / 64 + 1];
+			for (Entry<Integer, HashSet<Integer>> center : this.canopy
 					.entrySet()) {
 				tmpSet.clear();
-				tmpSet.addAll(center.getValue().keySet());
-				tmpSet.retainAll(urate.keySet());
-				if (tmpSet.size() >= 2)
-					mark[center.getKey()] = '1';
-				else
-					mark[center.getKey()] = '0';
+				tmpSet.addAll(center.getValue());
+				tmpSet.retainAll(urate);
+				int i = center.getKey() / Long.SIZE;
+				int j = center.getKey() % Long.SIZE;
+				mark[i] &= (tmpSet.size() >= weakMark ? (1 << j) : (0 << j));
 			}
-			outVal.set(mark);
+
+			StringBuffer out = new StringBuffer(Long.toString(mark[0]));
+			for (int i = 1; i < mark.length; i++) {
+				out.append(userSpliter);
+				out.append(Long.toString(mark[i]));
+			}
+			out.append(spliter);
+			out.append(val);
+			outVal.set(out.toString());
 			context.write(key, outVal);
+			if (this.canopy.containsKey(Integer.parseInt(key.toString())))
+				mos.write("init-center", key, value);
+		}
+
+		protected void cleanup(Context context) throws IOException,
+				InterruptedException {
+			mos.close();
 		}
 
 		/*
@@ -195,8 +202,8 @@ public class Canopy {
 		 */
 	}
 
-	private static void readCanopy(Path title,
-			HashMap<Integer, HashMap<Integer, Integer>> canopy) {
+	public static void readCanopy(Path title,
+			HashMap<Integer, HashSet<Integer>> canopy) {
 		try {
 			BufferedReader br = new BufferedReader(new FileReader(
 					title.toString()));
@@ -205,12 +212,9 @@ public class Canopy {
 				String[] v = t.split(spliter);
 				if (v.length == 0)
 					continue;
-				HashMap<Integer, Integer> userID = new HashMap<Integer, Integer>();
+				HashSet<Integer> userID = new HashSet<Integer>();
 				for (int i = 1; i < v.length; i++) {
-					String[] u = v[i].split(",");
-					if (u.length == 2)
-						userID.put(Integer.parseInt(u[0]),
-								Integer.parseInt(u[1]));
+					userID.add(Integer.parseInt(v[0]));
 				}
 				canopy.put(Integer.parseInt(v[0]), userID);
 			}
@@ -223,43 +227,97 @@ public class Canopy {
 		}
 	}
 
+	private static void saveCenter(String path, FileSystem fs,
+			HashMap<Integer, HashSet<Integer>> centers) {
+		try {
+			FSDataOutputStream fsds = fs.create(new Path(path));
+			BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(fsds));
+			for (Entry<Integer, HashSet<Integer>> center : centers.entrySet()) {
+				bw.append(Integer.toString(center.getKey()));
+				for (Integer uid : center.getValue()) {
+					bw.append(spliter + uid);
+				}
+				bw.newLine();
+			}
+			bw.close();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+
 	private static int mergeCanopy(String in, String out, Configuration conf) {
 		try {
-			HashMap<Integer, HashMap<Integer, Integer>> points = new HashMap<Integer, HashMap<Integer, Integer>>();
-			HashMap<Integer, HashMap<Integer, Integer>> centers = new HashMap<Integer, HashMap<Integer, Integer>>();
-			FileStatus[] files = FileSystem.get(conf).globStatus(
-					new Path(in + "/center*"));
+			FileSystem fs = FileSystem.get(conf);
+			HashMap<Integer, HashSet<Integer>> points = new HashMap<Integer, HashSet<Integer>>();
+			HashMap<Integer, HashSet<Integer>> centers = new HashMap<Integer, HashSet<Integer>>();
+			FileStatus[] files = fs.globStatus(new Path(in + "/center*"));
 			for (FileStatus file : files) {
 				readCanopy(file.getPath(), points);
 			}
 
 			HashSet<Integer> tmp = new HashSet<Integer>();
-			HashMap<Integer, HashMap<Integer, Integer>> leftpoints = new HashMap<Integer, HashMap<Integer, Integer>>();
+			HashMap<Integer, HashSet<Integer>> left = new HashMap<Integer, HashSet<Integer>>();
 			while (!points.isEmpty()) {
-				leftpoints.clear();
-				Entry<Integer, HashMap<Integer, Integer>> center = points
-						.entrySet().iterator().next();
+				left.clear();
+				Entry<Integer, HashSet<Integer>> center = points.entrySet()
+						.iterator().next();
 				centers.put(center.getKey(), center.getValue());
 				points.remove(center.getKey());
 
-				for (Entry<Integer, HashMap<Integer, Integer>> point : points
-						.entrySet()) {
+				for (Entry<Integer, HashSet<Integer>> point : points.entrySet()) {
 					tmp.clear();
-					tmp.addAll(point.getValue().keySet());
-					tmp.retainAll(center.getValue().keySet());
-					if (tmp.size() < 8)
-						leftpoints.put(point.getKey(), point.getValue());
+					tmp.addAll(point.getValue());
+					tmp.retainAll(center.getValue());
+					if (tmp.size() < strongMark)
+						left.put(point.getKey(), point.getValue());
 				}
-				HashMap<Integer, HashMap<Integer, Integer>> exchange = points;
-				points = leftpoints;
-				leftpoints = exchange;
+				HashMap<Integer, HashSet<Integer>> exchange = points;
+				points = left;
+				left = exchange;
 			}
+
+			saveCenter(out + "/marked-centers", fs, centers);
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 			return -1;
 		}
 		return 0;
+	}
+
+	public void markCenter(HashMap<Integer, HashMap<Integer, Integer>> centers,
+			HashMap<Integer, Long[]> centerMarks) {
+		int arraylen = centers.size() / Long.SIZE + 1;
+		for (Entry<Integer, HashMap<Integer, Integer>> center : centers
+				.entrySet()) {
+			centerMarks.put(center.getKey(), new Long[arraylen]);
+		}
+		HashMap<Integer, HashMap<Integer, Integer>> left = new HashMap<Integer, HashMap<Integer, Integer>>();
+		left.putAll(centers);
+		HashSet<Integer> tmp = new HashSet<Integer>();
+		while (!left.isEmpty()) {
+			Integer currentKey = left.keySet().iterator().next();
+			left.remove(currentKey);
+			for (Entry<Integer, HashMap<Integer, Integer>> center : left
+					.entrySet()) {
+				tmp.clear();
+				tmp.addAll(center.getValue().keySet());
+				tmp.retainAll(centers.get(currentKey).keySet());
+
+				if (tmp.size() >= 2) {
+					centerMarks.get(currentKey)[center.getKey().intValue() >> 6] &= (1 << (center
+							.getKey().intValue() & 63));
+					centerMarks.get(currentKey)[currentKey.intValue() >> 6] &= (1 << (currentKey
+							.intValue() & 63));
+				} else {
+					centerMarks.get(currentKey)[center.getKey().intValue() >> 6] &= (0 << (center
+							.getKey().intValue() & 63));
+					centerMarks.get(currentKey)[currentKey.intValue() >> 6] &= (0 << (currentKey
+							.intValue() & 63));
+				}
+			}
+		}
 	}
 
 	/**
@@ -291,6 +349,9 @@ public class Canopy {
 			mark.setOutputValueClass(Text.class);
 			FileInputFormat.addInputPath(mark, new Path(args[1]));
 			FileOutputFormat.setOutputPath(mark, new Path(args[2]));
+
+			MultipleOutputs.addNamedOutput(mark, "init-center",
+					TextOutputFormat.class, Text.class, Text.class);
 
 			DistributedCache.addCacheFile(new Path(args[3]).toUri(),
 					mark.getConfiguration());

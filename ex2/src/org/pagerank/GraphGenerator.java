@@ -1,12 +1,14 @@
 package org.pagerank;
 
 import java.io.BufferedReader;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.io.FileReader;
 import java.io.IOException;
-import java.util.HashSet;
+import java.io.InputStreamReader;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.util.BitSet;
 import java.util.Random;
-import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -85,7 +87,7 @@ public class GraphGenerator {
 
 	public static class FilterMap extends Mapper<Text, Text, Text, Text> {
 
-		Set<String> titles = new HashSet<String>();
+		BitSet bits = new BitSet(bitSize);
 
 		@Override
 		public void setup(Context context) throws IOException,
@@ -99,16 +101,17 @@ public class GraphGenerator {
 
 		private void readTitle(Path title) {
 			try {
-				BufferedReader br = new BufferedReader(new FileReader(
-						title.toString()));
-				String t;
-				while ((t = br.readLine()) != null) {
-					this.titles.add(t);
-				}
+				ObjectInputStream ois = new ObjectInputStream(
+						new FileInputStream(title.toString()));
+				bits = (BitSet) ois.readObject();
+				ois.close();
 			} catch (FileNotFoundException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (ClassNotFoundException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
@@ -122,7 +125,7 @@ public class GraphGenerator {
 				throws IOException, InterruptedException {
 			String[] vals = value.toString().split("\\[");
 			for (String val : vals) {
-				if (!val.equals("") && titles.contains(val.toString())) {
+				if (!val.equals("") && exist(bits, val)) {
 					outVal.set("1]" + val);
 					context.write(key, outVal);
 
@@ -150,6 +153,52 @@ public class GraphGenerator {
 			outVal.set(vals.toString());
 			context.write(key, outVal);
 		}
+	}
+
+	private static final int bitSize = 1 << 28;
+	private static final int basic = bitSize - 1;
+
+	private static int[] lrandom(String key) {
+		int[] randomsum = new int[4];
+		int random0 = hashCode(key, 1);
+		int random1 = hashCode(key, 2);
+		int random2 = hashCode(key, 5);
+		int random3 = hashCode(key, 7);
+		randomsum[0] = random0;
+		randomsum[1] = random1;
+		randomsum[2] = random2;
+		randomsum[3] = random3;
+		return randomsum;
+	}
+
+	private static void add(BitSet bits, String key) {
+		if (exist(bits, key)) {
+			return;
+		}
+		int keyCode[] = lrandom(key);
+		bits.set(keyCode[0]);
+		bits.set(keyCode[1]);
+		bits.set(keyCode[2]);
+		bits.set(keyCode[3]);
+	}
+
+	private static boolean exist(BitSet bits, String key) {
+		int keyCode[] = lrandom(key);
+		if (bits.get(keyCode[0]) && bits.get(keyCode[1])
+				&& bits.get(keyCode[2]) && bits.get(keyCode[3])) {
+			return true;
+		}
+		return false;
+	}
+
+	private static int hashCode(String key, int Q) {
+		int h = 0;
+		char val[] = key.toCharArray();
+		int len = key.length();
+		for (int i = 0; i < len; i++) {
+			h = (26 + 2 * Q + 1) * h + (val[i] * Q << 11) + val[i] + (h >> 19);
+		}
+		return (basic & h);
 	}
 
 	public static void run(String[] args, Configuration conf) {
@@ -186,12 +235,30 @@ public class GraphGenerator {
 			FileInputFormat.addInputPath(filterJob, new Path(mid, "part*"));
 			FileOutputFormat.setOutputPath(filterJob, new Path(args[1]));
 
-			FileStatus[] files = FileSystem.get(conf).globStatus(
-					new Path(mid, "title*"));
+			FileSystem fs = FileSystem.get(conf);
+			FileStatus[] files = fs.globStatus(new Path(mid, "title*"));
+
+			BitSet bits = new BitSet(bitSize);
 			for (FileStatus file : files) {
-				DistributedCache.addCacheFile(file.getPath().toUri(),
-						filterJob.getConfiguration());
+				BufferedReader br = new BufferedReader(new InputStreamReader(
+						fs.open(file.getPath())));
+				String line;
+				while ((line = br.readLine()) != null) {
+					add(bits, line);
+				}
+				br.close();
 			}
+
+			Path filterPath = new Path(mid, "filter");
+
+			ObjectOutputStream oos = new ObjectOutputStream(
+					fs.create(filterPath));
+			oos.writeObject(bits);
+			oos.flush();
+			oos.close();
+
+			DistributedCache.addCacheFile(filterPath.toUri(),
+					filterJob.getConfiguration());
 
 			filterJob.waitForCompletion(true);
 
