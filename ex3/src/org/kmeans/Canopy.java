@@ -155,7 +155,7 @@ public class Canopy {
 				if (r.length == 2)
 					urate.add(Integer.parseInt(r[0]));
 			}
-			long[] mark = new long[this.canopy.size() / 64 + 1];
+			long[] mark = new long[this.canopy.size() / Long.SIZE + 1];
 			for (Entry<Integer, HashSet<Integer>> center : this.canopy
 					.entrySet()) {
 				tmpSet.clear();
@@ -166,7 +166,10 @@ public class Canopy {
 				mark[i] &= (tmpSet.size() >= weakMark ? (1 << j) : (0 << j));
 			}
 
-			StringBuffer out = new StringBuffer(Long.toString(mark[0]));
+			StringBuffer out = new StringBuffer();
+			out.append(Integer.toString(1));
+			out.append(spliter);
+			out.append(Long.toString(mark[0]));
 			for (int i = 1; i < mark.length; i++) {
 				out.append(userSpliter);
 				out.append(Long.toString(mark[i]));
@@ -176,7 +179,7 @@ public class Canopy {
 			outVal.set(out.toString());
 			context.write(key, outVal);
 			if (this.canopy.containsKey(Integer.parseInt(key.toString())))
-				mos.write("init-center", key, value);
+				mos.write("init-center", key, outVal);
 		}
 
 		protected void cleanup(Context context) throws IOException,
