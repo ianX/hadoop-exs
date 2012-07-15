@@ -1,4 +1,4 @@
-package org.kmeans.io;
+package org.ianX.kmeans.io;
 
 import java.io.DataInput;
 import java.io.DataOutput;

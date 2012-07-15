@@ -1,4 +1,4 @@
-package org.kmeans.io;
+package org.ianX.kmeans.io;
 
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.LongWritable;

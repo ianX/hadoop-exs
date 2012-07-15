@@ -1,9 +1,9 @@
-package org.util;
+package org.ianX.util;
 
 import java.util.Comparator;
 import java.util.Map;
 
-public class MapComprator<K, V> implements Comparator<K> {
+public class MapComprator<K, V extends Comparable<V>> implements Comparator<K> {
 
 	private Map<K, V> map;
 
@@ -12,11 +12,10 @@ public class MapComprator<K, V> implements Comparator<K> {
 		map = m;
 	}
 
-	@SuppressWarnings("unchecked")
 	@Override
 	public int compare(K o1, K o2) {
 		// TODO Auto-generated method stub
-		return ((Comparable<V>)(map.get(o1))).compareTo(map.get(o2));
+		return map.get(o1).compareTo(map.get(o2));
 	}
 
 }

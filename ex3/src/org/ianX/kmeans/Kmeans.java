@@ -1,51 +1,64 @@
-package org.kmeans;
+package org.ianX.kmeans;
 
 import java.io.BufferedReader;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.Set;
 import java.util.Map.Entry;
+import java.util.Set;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.filecache.DistributedCache;
+import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Reducer;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.input.KeyValueTextInputFormat;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.MultipleOutputs;
-import org.util.MapComprator;
-import org.util.MinHeap;
+import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
+import org.apache.hadoop.util.GenericOptionsParser;
+import org.ianX.util.MapComprator;
+import org.ianX.util.MinHeap;
 
 public class Kmeans {
 
+	public static final String CenterPrefix = "center";
 	public static final String mrSpliter = ":";
+	public static final String KMEANS_CENTERS_FILE = "kmeans.centers.file";
 
 	public static class Map extends Mapper<Text, Text, Text, Text> {
-		private HashMap<Integer, HashMap<Integer, Integer>> centers = new HashMap<Integer, HashMap<Integer, Integer>>();
+		private HashMap<Integer, HashMap<Integer, Double>> centers = new HashMap<Integer, HashMap<Integer, Double>>();
 		private HashMap<Integer, Long[]> centerMarks = new HashMap<Integer, Long[]>();
 		private Set<Integer> tmpSet = new HashSet<Integer>();
 
 		public void setup(Context context) throws IOException,
 				InterruptedException {
-			String cp = context.getConfiguration().get("kmeans.centers.file",
-					"");
+			String cp = context.getConfiguration().get(KMEANS_CENTERS_FILE, "");
 			if (cp.length() > 0) {
-				readCenters(cp, centers, centerMarks, context);
+				FileStatus[] files = FileSystem.get(context.getConfiguration())
+						.globStatus(new Path(cp));
+				for (FileStatus file : files) {
+					readCenters(file.getPath(), centers, centerMarks, context);
+				}
 			}
 			context.setStatus("Kmeans Map: read centers success");
 		}
 
-		private void readCenters(String path,
-				HashMap<Integer, HashMap<Integer, Integer>> centers,
+		private void readCenters(Path path,
+				HashMap<Integer, HashMap<Integer, Double>> centers,
 				HashMap<Integer, Long[]> centerMarks, Context context) {
 			try {
 				BufferedReader br = new BufferedReader(new InputStreamReader(
-						FileSystem.get(context.getConfiguration()).open(
-								new Path(path))));
+						FileSystem.get(context.getConfiguration()).open(path)));
 				String line;
 				while ((line = br.readLine()) != null) {
 					String[] words = line.split("\t");
@@ -61,12 +74,12 @@ public class Kmeans {
 							}
 							centerMarks.put(key, marks);
 						}
-						HashMap<Integer, Integer> rate = new HashMap<Integer, Integer>();
+						HashMap<Integer, Double> rate = new HashMap<Integer, Double>();
 						for (int i = 1; i < vals.length; i++) {
 							String[] r = vals[i].split(Canopy.userSpliter);
 							if (r.length == 2)
 								rate.put(Integer.parseInt(r[0]),
-										Integer.parseInt(r[1]));
+										Double.parseDouble(r[1]));
 						}
 						centers.put(key, rate);
 					}
@@ -117,7 +130,7 @@ public class Kmeans {
 				}
 				if (inf)
 					continue;
-				HashMap<Integer, Integer> cval = centers.get(cid);
+				HashMap<Integer, Double> cval = centers.get(cid);
 				tmpSet.clear();
 				tmpSet.addAll(urate.keySet());
 				tmpSet.retainAll(cval.keySet());
@@ -165,7 +178,9 @@ public class Kmeans {
 			Path[] canopys = DistributedCache.getLocalCacheFiles(context
 					.getConfiguration());
 			for (Path cc : canopys) {
-				Canopy.readCanopy(cc, this.canopy);
+				BufferedReader br = new BufferedReader(new FileReader(
+						cc.toString()));
+				Canopy.readCanopy(br, this.canopy);
 			}
 			context.setStatus("Kmeans Reduce: read canopy success");
 		}
@@ -223,15 +238,15 @@ public class Kmeans {
 				newCenter.put(uid, sums.get(uid) / counts.get(uid));
 			}
 			long[] mark = new long[this.canopy.size() / Long.SIZE + 1];
-			for (Entry<Integer, HashSet<Integer>> center : this.canopy
-					.entrySet()) {
+			for (Entry<Integer, HashSet<Integer>> center : canopy.entrySet()) {
 				tmpSet.clear();
 				tmpSet.addAll(center.getValue());
 				tmpSet.retainAll(newCenter.keySet());
 				int i = center.getKey() / Long.SIZE;
 				int j = center.getKey() % Long.SIZE;
-				mark[i] &= (tmpSet.size() >= Canopy.weakMark ? (1 << j)
-						: (0 << j));
+				
+				if (tmpSet.size() >= Canopy.weakMark)
+					mark[i] |= (1 << j);
 			}
 			StringBuffer sb = new StringBuffer();
 			sb.append(Long.toString(mark[0]));
@@ -246,7 +261,7 @@ public class Kmeans {
 				sb.append(user.getValue().toString());
 			}
 			outCenter.set(sb.toString());
-			mos.write("center", key, outCenter);
+			mos.write(CenterPrefix, key, outCenter);
 		}
 
 		public void cleanup(Context context) throws IOException,
@@ -255,11 +270,118 @@ public class Kmeans {
 		}
 	}
 
-	public static int run(String[] args, Configuration conf) {
+	/** args[0]:canopy; args[1]:init center; args[2]:marked data; args[3]:outdir */
+	public static int run(String[] args, Configuration conf, int n) {
+		try {
+			FileSystem fs = FileSystem.get(conf);
+			String canopy = args[0];
+			String center = args[1];
+			String in = args[2];
+			String out = "";
+			for (int i = 0; i < n; i++) {
+				if (i == n - 1)
+					out = args[3];
+				else
+					out = args[3] + "_" + i;
+				Job job = new Job(conf, "kmeans");
+				job.setJarByClass(Kmeans.class);
+				job.setMapperClass(Map.class);
+				job.setReducerClass(Reduce.class);
+				job.setOutputKeyClass(Text.class);
+				job.setOutputValueClass(Text.class);
+				job.setInputFormatClass(KeyValueTextInputFormat.class);
+
+				job.getConfiguration().set(KMEANS_CENTERS_FILE, center);
+				FileStatus[] canopyFiles = fs.globStatus(new Path(canopy));
+				for (FileStatus cf : canopyFiles) {
+					DistributedCache.addCacheFile(cf.getPath().toUri(),
+							job.getConfiguration());
+				}
+
+				FileInputFormat.addInputPath(job, new Path(in));
+				FileOutputFormat.setOutputPath(job, new Path(out));
+				MultipleOutputs.addNamedOutput(job, CenterPrefix,
+						TextOutputFormat.class, Text.class, Text.class);
+				job.waitForCompletion(true);
+
+				center = out + "/" + CenterPrefix + "*";
+				in = out + "/part*";
+			}
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			return -1;
+		}
 		return 0;
 	}
 
+	/** args[0]:raw in; args[1]:marked out; args[2]:canopy path */
 	public static void main(String[] args) {
 
+		try {
+			Configuration conf = new Configuration();
+			String[] otherArgs = new GenericOptionsParser(conf, args)
+					.getRemainingArgs();
+
+			boolean raw = false;
+
+			ArrayList<String> params = new ArrayList<String>();
+			for (String s : otherArgs) {
+				if (s.equals("-new")) {
+					raw = true;
+					continue;
+				}
+				params.add(s);
+			}
+
+			if (params.size() != 3) {
+				System.err
+						.println("usage: kmeans [-new] inDir outDir canopyDir");
+				System.exit(-1);
+			}
+
+			String raw_in = params.get(0);
+			String raw_out = params.get(0) + "_raw";
+			String marked = params.get(0) + "_marked";
+			String canopyPath = params.get(2);
+			String canopy = params.get(2) + "/" + "canopys";
+			String init_center = marked + "/" + CenterPrefix;
+			String out = params.get(1);
+
+			String[] paths = new String[4];
+
+			FileSystem fs = FileSystem.get(conf);
+
+			if (raw) {
+				Path cp = new Path(canopyPath);
+				if (!fs.exists(cp))
+					fs.delete(cp, true);
+				fs.mkdirs(new Path(canopyPath));
+				marked = params.get(0) + "_marked";
+				paths[0] = raw_in;
+				paths[1] = raw_out;
+				paths[2] = marked;
+				paths[3] = canopy;
+				Canopy.run(paths, conf);
+			} else {
+				Path cy = new Path(canopy);
+				if (!fs.exists(cy) || !fs.isFile(cy)) {
+					System.err.println("canopy file error");
+					System.exit(-1);
+				}
+				marked = params.get(0) + "/part*";
+			}
+			init_center = marked + "/" + CenterPrefix + "*";
+
+			paths[0] = canopy;
+			paths[1] = init_center;
+			paths[2] = marked + "/part*";
+			paths[3] = out;
+			Kmeans.run(paths, conf, 3);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			System.exit(-1);
+		}
 	}
 }

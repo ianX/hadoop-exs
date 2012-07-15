@@ -1,4 +1,4 @@
-package org.util;
+package org.ianX.util;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -50,6 +50,9 @@ public class MinHeap<E> {
 		data.remove(lastpos);
 		set.remove(last);
 
+		if (data.size() == 0)
+			return last;
+
 		return change(last);
 	}
 
@@ -68,7 +71,7 @@ public class MinHeap<E> {
 		data.set(0, e);
 		int pos = 0;
 		int child = 1;
-		do {
+		while (child < data.size()) {
 			if (child + 1 < data.size()
 					&& comparator.compare(data.get(child), data.get(child + 1)) > 0)
 				child++;
@@ -80,7 +83,7 @@ public class MinHeap<E> {
 			}
 			pos = child;
 			child = pos * 2 + 1;
-		} while (child < data.size());
+		}
 		return ret;
 	}
 

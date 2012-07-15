@@ -1,10 +1,11 @@
-package org.kmeans;
+package org.ianX.kmeans;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -24,15 +25,17 @@ import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.input.KeyValueTextInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.MultipleOutputs;
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
-import org.kmeans.io.MovieInputFormat;
+import org.ianX.kmeans.io.MovieInputFormat;
 
 public class Canopy {
 
 	public static final String spliter = "/";
 	public static final String userSpliter = ",";
+	public static final String CanopyPrefix = "canopy";
 	public static final int strongMark = 8;
 	public static final int weakMark = 2;
 
@@ -111,7 +114,8 @@ public class Canopy {
 			}
 			context.setStatus("begin pick canopy centers");
 			pickCenter(context);
-			saveCenter(path + "/center-" + key.toString(), fs, this.centers);
+			saveCenter(path + "/" + CanopyPrefix + "-" + key.toString(), fs,
+					this.centers);
 		}
 
 	}
@@ -136,7 +140,9 @@ public class Canopy {
 			Path[] centers = DistributedCache.getLocalCacheFiles(context
 					.getConfiguration());
 			for (Path center : centers) {
-				readCanopy(center, this.canopy);
+				BufferedReader br = new BufferedReader(new FileReader(
+						center.toString()));
+				readCanopy(br, this.canopy);
 			}
 			context.setStatus("MarkMap: read canopy success");
 		}
@@ -148,6 +154,7 @@ public class Canopy {
 		public void map(Text key, Text value, Context context)
 				throws IOException, InterruptedException {
 			HashSet<Integer> urate = new HashSet<Integer>();
+			boolean iscc = false;
 			String val = value.toString();
 			String[] users = val.split(spliter);
 			for (String user : users) {
@@ -156,14 +163,19 @@ public class Canopy {
 					urate.add(Integer.parseInt(r[0]));
 			}
 			long[] mark = new long[this.canopy.size() / Long.SIZE + 1];
-			for (Entry<Integer, HashSet<Integer>> center : this.canopy
-					.entrySet()) {
-				tmpSet.clear();
-				tmpSet.addAll(center.getValue());
-				tmpSet.retainAll(urate);
-				int i = center.getKey() / Long.SIZE;
-				int j = center.getKey() % Long.SIZE;
-				mark[i] &= (tmpSet.size() >= weakMark ? (1 << j) : (0 << j));
+			for (Entry<Integer, HashSet<Integer>> cc : this.canopy.entrySet()) {
+				if (cc.getValue().equals(urate))
+					iscc = true;
+				else {
+					tmpSet.clear();
+					tmpSet.addAll(cc.getValue());
+					tmpSet.retainAll(urate);
+				}
+				int i = cc.getKey() / Long.SIZE;
+				int j = cc.getKey() % Long.SIZE;
+
+				if (iscc || tmpSet.size() >= weakMark)
+					mark[i] |= (1 << j);
 			}
 
 			StringBuffer out = new StringBuffer();
@@ -178,8 +190,8 @@ public class Canopy {
 			out.append(val);
 			outVal.set(out.toString());
 			context.write(key, outVal);
-			if (this.canopy.containsKey(Integer.parseInt(key.toString())))
-				mos.write("init-center", key, outVal);
+			if (iscc)
+				mos.write(Kmeans.CenterPrefix, key, outVal);
 		}
 
 		protected void cleanup(Context context) throws IOException,
@@ -205,11 +217,9 @@ public class Canopy {
 		 */
 	}
 
-	public static void readCanopy(Path title,
+	public static void readCanopy(BufferedReader br,
 			HashMap<Integer, HashSet<Integer>> canopy) {
 		try {
-			BufferedReader br = new BufferedReader(new FileReader(
-					title.toString()));
 			String t;
 			while ((t = br.readLine()) != null) {
 				String[] v = t.split(spliter);
@@ -217,7 +227,7 @@ public class Canopy {
 					continue;
 				HashSet<Integer> userID = new HashSet<Integer>();
 				for (int i = 1; i < v.length; i++) {
-					userID.add(Integer.parseInt(v[0]));
+					userID.add(Integer.parseInt(v[i]));
 				}
 				canopy.put(Integer.parseInt(v[0]), userID);
 			}
@@ -254,9 +264,13 @@ public class Canopy {
 			FileSystem fs = FileSystem.get(conf);
 			HashMap<Integer, HashSet<Integer>> points = new HashMap<Integer, HashSet<Integer>>();
 			HashMap<Integer, HashSet<Integer>> centers = new HashMap<Integer, HashSet<Integer>>();
-			FileStatus[] files = fs.globStatus(new Path(in + "/center*"));
+			HashMap<Integer, HashSet<Integer>> outcc = new HashMap<Integer, HashSet<Integer>>();
+			FileStatus[] files = fs.globStatus(new Path(in + "/" + CanopyPrefix
+					+ "*"));
 			for (FileStatus file : files) {
-				readCanopy(file.getPath(), points);
+				BufferedReader br = new BufferedReader(new InputStreamReader(
+						fs.open(file.getPath())));
+				readCanopy(br, points);
 			}
 
 			HashSet<Integer> tmp = new HashSet<Integer>();
@@ -280,7 +294,11 @@ public class Canopy {
 				left = exchange;
 			}
 
-			saveCenter(out + "/marked-centers", fs, centers);
+			int index = 0;
+			for (Entry<Integer, HashSet<Integer>> cc : centers.entrySet()) {
+				outcc.put(index++, cc.getValue());
+			}
+			saveCenter(out, fs, outcc);
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -308,15 +326,11 @@ public class Canopy {
 				tmp.addAll(center.getValue().keySet());
 				tmp.retainAll(centers.get(currentKey).keySet());
 
+				Long[] val = centerMarks.get(currentKey);
 				if (tmp.size() >= 2) {
-					centerMarks.get(currentKey)[center.getKey().intValue() >> 6] &= (1 << (center
+					val[center.getKey().intValue() >> 6] |= (1 << (center
 							.getKey().intValue() & 63));
-					centerMarks.get(currentKey)[currentKey.intValue() >> 6] &= (1 << (currentKey
-							.intValue() & 63));
-				} else {
-					centerMarks.get(currentKey)[center.getKey().intValue() >> 6] &= (0 << (center
-							.getKey().intValue() & 63));
-					centerMarks.get(currentKey)[currentKey.intValue() >> 6] &= (0 << (currentKey
+					val[currentKey.intValue() >> 6] |= (1 << (currentKey
 							.intValue() & 63));
 				}
 			}
@@ -324,11 +338,11 @@ public class Canopy {
 	}
 
 	/**
-	 * args[0]: input ; args[1]: output ; args[2]: marks ; args[3]: canopys .
+	 * args[0]:raw in ; args[1]:raw out ; args[2]:marked out ; args[3]:canopys.
 	 */
 	public static int run(String[] args, Configuration conf) {
 		try {
-			Job job = new Job(conf, "canopy");
+			Job job = new Job(conf, "Canopy");
 			job.setJarByClass(Canopy.class);
 			job.setMapperClass(Map.class);
 			job.setReducerClass(Reduce.class);
@@ -337,7 +351,7 @@ public class Canopy {
 			job.setInputFormatClass(MovieInputFormat.class);
 			FileInputFormat.addInputPath(job, new Path(args[0]));
 			FileOutputFormat.setOutputPath(job, new Path(args[1]));
-			String cpath = args[0] + "_centers";
+			String cpath = args[0] + "_canopys";
 			job.getConfiguration().set("kmeans.canopy.centers", cpath);
 
 			job.waitForCompletion(true);
@@ -350,10 +364,11 @@ public class Canopy {
 			mark.setMapperClass(MarkMap.class);
 			mark.setOutputKeyClass(Text.class);
 			mark.setOutputValueClass(Text.class);
+			mark.setInputFormatClass(KeyValueTextInputFormat.class);
 			FileInputFormat.addInputPath(mark, new Path(args[1]));
 			FileOutputFormat.setOutputPath(mark, new Path(args[2]));
 
-			MultipleOutputs.addNamedOutput(mark, "init-center",
+			MultipleOutputs.addNamedOutput(mark, Kmeans.CenterPrefix,
 					TextOutputFormat.class, Text.class, Text.class);
 
 			DistributedCache.addCacheFile(new Path(args[3]).toUri(),
