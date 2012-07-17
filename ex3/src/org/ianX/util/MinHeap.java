@@ -3,6 +3,7 @@ package org.ianX.util;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
+import java.util.Iterator;
 
 public class MinHeap<E> {
 	private ArrayList<E> data = new ArrayList<E>();
@@ -85,6 +86,10 @@ public class MinHeap<E> {
 			child = pos * 2 + 1;
 		}
 		return ret;
+	}
+	
+	public Iterator<E> iterator(){
+		return data.iterator();
 	}
 
 	public int size() {

@@ -6,6 +6,8 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.io.OutputStreamWriter;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -19,6 +21,7 @@ import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Job;
@@ -30,31 +33,34 @@ import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.MultipleOutputs;
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 import org.ianX.kmeans.io.MovieInputFormat;
+import org.ianX.util.StringSpliter;
 
 public class Canopy {
 
-	public static final String spliter = "/";
-	public static final String userSpliter = ",";
-	public static final String CanopyPrefix = "canopy";
-	public static final int strongMark = 8;
-	public static final int weakMark = 2;
+	/**
+	 * input : one movie(value[mid:u1,r1/u2,r2...]); output key is a reduce id,
+	 * output value is the input movie
+	 */
+	public static class Map extends
+			Mapper<LongWritable, Text, IntWritable, Text> {
 
-	public static class Map extends Mapper<LongWritable, Text, Text, Text> {
-
-		private Text outKey = new Text();
+		private IntWritable outKey = new IntWritable();
 
 		public void map(LongWritable key, Text value, Context context)
 				throws IOException, InterruptedException {
 			String val = value.toString();
-			if (val.contains(":")) {
-				int id = Integer.parseInt(val.substring(0, val.indexOf(':'))) % 128;
-				outKey.set(Integer.toString(id));
-				context.write(outKey, value);
-			}
+			int id = Integer.parseInt(val.substring(0, val.indexOf(':'))) & 127;
+			outKey.set(id);
+			context.write(outKey, value);
 		}
 	}
 
-	public static class Reduce extends Reducer<Text, Text, Text, Text> {
+	/**
+	 * input key is the reduce id,value are movies; output key is the movie id,
+	 * output value is a text like "u1,r1/u2,r2...". mos output is canopy
+	 * centers: id u1/u2/u3...
+	 */
+	public static class Reduce extends Reducer<IntWritable, Text, Text, Text> {
 
 		private FileSystem fs;
 		private String path;
@@ -67,7 +73,8 @@ public class Canopy {
 		protected void setup(Context context) throws IOException,
 				InterruptedException {
 			fs = FileSystem.get(context.getConfiguration());
-			path = context.getConfiguration().get("kmeans.canopy.centers", "");
+			path = context.getConfiguration().get(
+					Constants.KMEANS_CANOPY_CENTERS, "");
 		}
 
 		private void pickCenter(Context context) {
@@ -85,44 +92,69 @@ public class Canopy {
 					tmp.clear();
 					tmp.addAll(center.getValue());
 					tmp.retainAll(point.getValue());
-					if (tmp.size() >= strongMark)
+					if (tmp.size() >= Constants.strongMark)
 						points.remove(key);
 				}
 				key = -1;
 			}
 		}
 
-		public void reduce(Text key, Iterable<Text> value, Context context)
-				throws IOException, InterruptedException {
+		private StringSpliter sspliter = new StringSpliter();
+
+		public void reduce(IntWritable key, Iterable<Text> value,
+				Context context) throws IOException, InterruptedException {
 			points.clear();
 			centers.clear();
+
 			for (Text val : value) {
-				String[] v = val.toString().split(":");
-				if (v.length != 2)
+				sspliter.set(val.toString(), ':');
+				String outkey = sspliter.next();
+				String outval = sspliter.left();
+				if (outkey == null || outval == null)
 					continue;
-				String[] uids = v[1].split(spliter);
+
+				// String[] v = val.toString().split(":");
+				// if (v.length != 2)
+				// continue;
+				// String[] uids = v[1].split(Constants.spliter);
+				sspliter.set(outval, Constants.userSpliter);
 				HashSet<Integer> userID = new HashSet<Integer>();
-				for (String uid : uids) {
-					String[] u = uid.split(userSpliter);
-					if (u.length == 2)
-						userID.add(Integer.parseInt(u[0]));
+				String uid;
+				while ((uid = sspliter.next()) != null) {
+					// String[] u = uid.split(Constants.userSpliter);
+					// if (u.length == 2)
+					// userID.add(Integer.parseInt(u[0]));
+					sspliter.changeSpliter(Constants.spliter);
+					String urate = sspliter.next();
+					sspliter.changeSpliter(Constants.userSpliter);
+					
+					if (urate == null)
+						break;
+					userID.add(Integer.parseInt(uid));
 				}
-				points.put(Integer.parseInt(v[0]), userID);
-				outKey.set(v[0]);
-				outVal.set(v[1]);
+				points.put(Integer.parseInt(outkey), userID);
+				outKey.set(outkey);
+				outVal.set(outval);
 				context.write(outKey, outVal);
 			}
 			context.setStatus("begin pick canopy centers");
 			pickCenter(context);
-			saveCenter(path + "/" + CanopyPrefix + "-" + key.toString(), fs,
+			saveCanopyCenter(
+					path + "/" + Constants.CanopyPrefix + "-" + key.get(), fs,
 					this.centers);
 		}
 
 	}
 
+	/**
+	 * Mark data set by canopy. input key is movie id, value is u1,r1/u2,r2...;
+	 * output key is movie id, value is marked rating with default center:
+	 * 1/m1,m2../u1,r1/u2,r2/...
+	 */
 	public static class MarkMap extends Mapper<Text, Text, Text, Text> {
 
 		private HashMap<Integer, HashSet<Integer>> canopy = new HashMap<Integer, HashSet<Integer>>();
+		private HashSet<Integer> cid = new HashSet<Integer>();
 		private Set<Integer> tmpSet = new HashSet<Integer>();
 		@SuppressWarnings("rawtypes")
 		private MultipleOutputs mos;
@@ -136,35 +168,61 @@ public class Canopy {
 				InterruptedException {
 			// markPath = context.getConfiguration()
 			// .get("kmeans.canopy.marks", "");
+			String cidPath = context.getConfiguration().get(
+					Constants.KMEANS_CANOPY_MOVIEID);
+			ObjectInputStream ois = new ObjectInputStream(FileSystem.get(
+					context.getConfiguration()).open(new Path(cidPath)));
+			try {
+				cid = (HashSet<Integer>) ois.readObject();
+			} catch (ClassNotFoundException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			ois.close();
+
 			mos = new MultipleOutputs(context);
 			Path[] centers = DistributedCache.getLocalCacheFiles(context
 					.getConfiguration());
 			for (Path center : centers) {
 				BufferedReader br = new BufferedReader(new FileReader(
 						center.toString()));
-				readCanopy(br, this.canopy);
+				readCanopyCenter(br, canopy);
 			}
 			context.setStatus("MarkMap: read canopy success");
 		}
 
-		Text outVal = new Text();
+		private Text outVal = new Text();
+		private StringSpliter sspliter = new StringSpliter();
+		private HashSet<Integer> urate = new HashSet<Integer>();
 
 		@SuppressWarnings("unchecked")
 		@Override
 		public void map(Text key, Text value, Context context)
 				throws IOException, InterruptedException {
-			HashSet<Integer> urate = new HashSet<Integer>();
+
+			urate.clear();
+			
 			boolean iscc = false;
 			String val = value.toString();
-			String[] users = val.split(spliter);
-			for (String user : users) {
-				String[] r = user.split(userSpliter);
-				if (r.length == 2)
-					urate.add(Integer.parseInt(r[0]));
+
+			// String[] users = val.split(Constants.spliter);
+			sspliter.set(val, Constants.userSpliter);
+			String uid;
+			while ((uid = sspliter.next()) != null) {
+				// String[] r = user.split(Constants.userSpliter);
+				// if (r.length == 2)
+				// urate.add(Integer.parseInt(r[0]));
+				sspliter.changeSpliter(Constants.spliter);
+				String u = sspliter.next();
+				sspliter.changeSpliter(Constants.userSpliter);
+				if (u == null)
+					break;
+				urate.add(Integer.parseInt(uid));
 			}
+			
 			long[] mark = new long[this.canopy.size() / Long.SIZE + 1];
 			for (Entry<Integer, HashSet<Integer>> cc : this.canopy.entrySet()) {
-				if (cc.getValue().equals(urate))
+				if (cid.contains(Integer.parseInt(key.toString())))
 					iscc = true;
 				else {
 					tmpSet.clear();
@@ -174,24 +232,28 @@ public class Canopy {
 				int i = cc.getKey() / Long.SIZE;
 				int j = cc.getKey() % Long.SIZE;
 
-				if (iscc || tmpSet.size() >= weakMark)
+				if (iscc || tmpSet.size() >= Constants.weakMark)
 					mark[i] |= (1 << j);
 			}
 
 			StringBuffer out = new StringBuffer();
 			out.append(Integer.toString(1));
-			out.append(spliter);
+			out.append(Constants.spliter);
+			
+			int offset = out.length();
+			
 			out.append(Long.toString(mark[0]));
 			for (int i = 1; i < mark.length; i++) {
-				out.append(userSpliter);
+				out.append(Constants.userSpliter);
 				out.append(Long.toString(mark[i]));
 			}
-			out.append(spliter);
+			out.append(Constants.spliter);
 			out.append(val);
 			outVal.set(out.toString());
 			context.write(key, outVal);
+			outVal.set(out.substring(offset));
 			if (iscc)
-				mos.write(Kmeans.CenterPrefix, key, outVal);
+				mos.write(Constants.CenterPrefix, key, outVal);
 		}
 
 		protected void cleanup(Context context) throws IOException,
@@ -217,19 +279,28 @@ public class Canopy {
 		 */
 	}
 
-	public static void readCanopy(BufferedReader br,
+	/**
+	 * the canopy file is created by saveCanopyCenter().
+	 */
+	public static void readCanopyCenter(BufferedReader br,
 			HashMap<Integer, HashSet<Integer>> canopy) {
 		try {
+			StringSpliter sspliter = new StringSpliter();
 			String t;
 			while ((t = br.readLine()) != null) {
-				String[] v = t.split(spliter);
-				if (v.length == 0)
+				sspliter.set(t, Constants.spliter);
+				// String[] v = t.split(Constants.spliter);
+				// if (v.length == 0)
+				// continue;
+				String mid = sspliter.next();
+				if (mid == null)
 					continue;
 				HashSet<Integer> userID = new HashSet<Integer>();
-				for (int i = 1; i < v.length; i++) {
-					userID.add(Integer.parseInt(v[i]));
+				String uid;
+				while ((uid = sspliter.next()) != null) {
+					userID.add(Integer.parseInt(uid));
 				}
-				canopy.put(Integer.parseInt(v[0]), userID);
+				canopy.put(Integer.parseInt(mid), userID);
 			}
 		} catch (FileNotFoundException e) {
 			// TODO Auto-generated catch block
@@ -240,7 +311,8 @@ public class Canopy {
 		}
 	}
 
-	private static void saveCenter(String path, FileSystem fs,
+	/** save canopy center use format: id/u1/u2/u3... */
+	private static void saveCanopyCenter(String path, FileSystem fs,
 			HashMap<Integer, HashSet<Integer>> centers) {
 		try {
 			FSDataOutputStream fsds = fs.create(new Path(path));
@@ -248,7 +320,7 @@ public class Canopy {
 			for (Entry<Integer, HashSet<Integer>> center : centers.entrySet()) {
 				bw.append(Integer.toString(center.getKey()));
 				for (Integer uid : center.getValue()) {
-					bw.append(spliter + uid);
+					bw.append(String.valueOf(Constants.spliter) + uid);
 				}
 				bw.newLine();
 			}
@@ -259,18 +331,23 @@ public class Canopy {
 		}
 	}
 
-	private static int mergeCanopy(String in, String out, Configuration conf) {
+	/**
+	 * called by run(). merge reduce mos output canopy centers from in to out.
+	 * NOTE: out canopy center id is NOT movie id
+	 */
+	private static int mergeCanopy(String in, String out, String cid,
+			Configuration conf) {
 		try {
 			FileSystem fs = FileSystem.get(conf);
 			HashMap<Integer, HashSet<Integer>> points = new HashMap<Integer, HashSet<Integer>>();
 			HashMap<Integer, HashSet<Integer>> centers = new HashMap<Integer, HashSet<Integer>>();
 			HashMap<Integer, HashSet<Integer>> outcc = new HashMap<Integer, HashSet<Integer>>();
-			FileStatus[] files = fs.globStatus(new Path(in + "/" + CanopyPrefix
-					+ "*"));
+			FileStatus[] files = fs.globStatus(new Path(in + "/"
+					+ Constants.CanopyPrefix + "*"));
 			for (FileStatus file : files) {
 				BufferedReader br = new BufferedReader(new InputStreamReader(
 						fs.open(file.getPath())));
-				readCanopy(br, points);
+				readCanopyCenter(br, points);
 			}
 
 			HashSet<Integer> tmp = new HashSet<Integer>();
@@ -286,7 +363,7 @@ public class Canopy {
 					tmp.clear();
 					tmp.addAll(point.getValue());
 					tmp.retainAll(center.getValue());
-					if (tmp.size() < strongMark)
+					if (tmp.size() < Constants.strongMark)
 						left.put(point.getKey(), point.getValue());
 				}
 				HashMap<Integer, HashSet<Integer>> exchange = points;
@@ -294,11 +371,19 @@ public class Canopy {
 				left = exchange;
 			}
 
+			ObjectOutputStream oos = new ObjectOutputStream(fs.create(new Path(
+					cid)));
+			HashSet<Integer> outset = new HashSet<Integer>();
+			outset.addAll(centers.keySet());
+			oos.writeObject(outset);
+			oos.flush();
+			oos.close();
+
 			int index = 0;
 			for (Entry<Integer, HashSet<Integer>> cc : centers.entrySet()) {
 				outcc.put(index++, cc.getValue());
 			}
-			saveCenter(out, fs, outcc);
+			saveCanopyCenter(out, fs, outcc);
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -307,6 +392,7 @@ public class Canopy {
 		return 0;
 	}
 
+	/** no use */
 	public void markCenter(HashMap<Integer, HashMap<Integer, Integer>> centers,
 			HashMap<Integer, Long[]> centerMarks) {
 		int arraylen = centers.size() / Long.SIZE + 1;
@@ -346,17 +432,21 @@ public class Canopy {
 			job.setJarByClass(Canopy.class);
 			job.setMapperClass(Map.class);
 			job.setReducerClass(Reduce.class);
+			job.setMapOutputKeyClass(IntWritable.class);
+			job.setMapOutputValueClass(Text.class);
 			job.setOutputKeyClass(Text.class);
 			job.setOutputValueClass(Text.class);
 			job.setInputFormatClass(MovieInputFormat.class);
 			FileInputFormat.addInputPath(job, new Path(args[0]));
 			FileOutputFormat.setOutputPath(job, new Path(args[1]));
 			String cpath = args[0] + "_canopys";
-			job.getConfiguration().set("kmeans.canopy.centers", cpath);
+			job.getConfiguration().set(Constants.KMEANS_CANOPY_CENTERS, cpath);
 
 			job.waitForCompletion(true);
 
-			if (mergeCanopy(cpath, args[3], job.getConfiguration()) != 0)
+			String ct = cpath + "/cid";
+
+			if (mergeCanopy(cpath, args[3], ct, job.getConfiguration()) != 0)
 				return -1;
 
 			Job mark = new Job(conf, "mark");
@@ -368,9 +458,10 @@ public class Canopy {
 			FileInputFormat.addInputPath(mark, new Path(args[1]));
 			FileOutputFormat.setOutputPath(mark, new Path(args[2]));
 
-			MultipleOutputs.addNamedOutput(mark, Kmeans.CenterPrefix,
+			MultipleOutputs.addNamedOutput(mark, Constants.CenterPrefix,
 					TextOutputFormat.class, Text.class, Text.class);
 
+			mark.getConfiguration().set(Constants.KMEANS_CANOPY_MOVIEID, ct);
 			DistributedCache.addCacheFile(new Path(args[3]).toUri(),
 					mark.getConfiguration());
 

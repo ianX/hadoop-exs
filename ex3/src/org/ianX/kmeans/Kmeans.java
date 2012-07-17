@@ -28,61 +28,87 @@ import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 import org.apache.hadoop.util.GenericOptionsParser;
 import org.ianX.util.MapComprator;
 import org.ianX.util.MinHeap;
+import org.ianX.util.StringSpliter;
 
 public class Kmeans {
-
-	public static final String CenterPrefix = "center";
-	public static final String mrSpliter = ":";
-	public static final String KMEANS_CENTERS_FILE = "kmeans.centers.file";
 
 	public static class Map extends Mapper<Text, Text, Text, Text> {
 		private HashMap<Integer, HashMap<Integer, Double>> centers = new HashMap<Integer, HashMap<Integer, Double>>();
 		private HashMap<Integer, Long[]> centerMarks = new HashMap<Integer, Long[]>();
 		private Set<Integer> tmpSet = new HashSet<Integer>();
 
+		/** read centers and center marks in. */
 		public void setup(Context context) throws IOException,
 				InterruptedException {
-			String cp = context.getConfiguration().get(KMEANS_CENTERS_FILE, "");
+			String cp = context.getConfiguration().get(
+					Constants.KMEANS_CENTERS_FILE, "");
 			if (cp.length() > 0) {
-				FileStatus[] files = FileSystem.get(context.getConfiguration())
-						.globStatus(new Path(cp));
+				FileSystem fs = FileSystem.get(context.getConfiguration());
+				FileStatus[] files = fs.globStatus(new Path(cp));
 				for (FileStatus file : files) {
-					readCenters(file.getPath(), centers, centerMarks, context);
+					readCenters(file.getPath(), centers, centerMarks, fs);
 				}
 			}
 			context.setStatus("Kmeans Map: read centers success");
 		}
 
+		/** center file use the same format as input data */
 		private void readCenters(Path path,
 				HashMap<Integer, HashMap<Integer, Double>> centers,
-				HashMap<Integer, Long[]> centerMarks, Context context) {
+				HashMap<Integer, Long[]> centerMarks, FileSystem fs) {
 			try {
 				BufferedReader br = new BufferedReader(new InputStreamReader(
-						FileSystem.get(context.getConfiguration()).open(path)));
+						fs.open(path)));
+
+				ArrayList<Long> markArray = new ArrayList<Long>();
+				StringSpliter sspliter = new StringSpliter();
+				StringSpliter mspliter = new StringSpliter();
 				String line;
 				while ((line = br.readLine()) != null) {
-					String[] words = line.split("\t");
-					if (words.length == 2) {
-						int key = Integer.parseInt(words[0]);
-						String[] vals = words[1].split(Canopy.spliter);
-						if (vals.length != 0) {
-							String[] markString = vals[0]
-									.split(Canopy.userSpliter);
-							Long[] marks = new Long[markString.length];
-							for (int i = 0; i < markString.length; i++) {
-								marks[i] = Long.parseLong(markString[i]);
-							}
-							centerMarks.put(key, marks);
+					sspliter.set(line, '\t');
+					// String[] words = line.split("\t");
+					String keyString = sspliter.next();
+					if (keyString == null)
+						continue;
+					// if (words.length == 2) {
+					int key = Integer.parseInt(keyString);
+					sspliter.changeSpliter(Constants.spliter);
+
+					String markString = sspliter.next();
+					// String[] vals = words[1].split(Constants.spliter);
+					if (markString != null) {
+						mspliter.set(markString, Constants.userSpliter);
+						markArray.clear();
+						String mark;
+						while ((mark = mspliter.next()) != null) {
+							markArray.add(Long.parseLong(mark));
 						}
-						HashMap<Integer, Double> rate = new HashMap<Integer, Double>();
-						for (int i = 1; i < vals.length; i++) {
-							String[] r = vals[i].split(Canopy.userSpliter);
-							if (r.length == 2)
-								rate.put(Integer.parseInt(r[0]),
-										Double.parseDouble(r[1]));
+						// String[] markString = vals[0]
+						// .split(Constants.userSpliter);
+						Long[] marks = new Long[markArray.size()];
+						for (int i = 0; i < markArray.size(); i++) {
+							marks[i] = markArray.get(i);
 						}
-						centers.put(key, rate);
+						centerMarks.put(key, marks);
 					}
+
+					HashMap<Integer, Double> rate = new HashMap<Integer, Double>();
+
+					sspliter.changeSpliter(Constants.userSpliter);
+					String uid;
+					while ((uid = sspliter.next()) != null) {
+						// String[] r = vals[i].split(Constants.userSpliter);
+						// if (r.length == 2)
+						// rate.put(Integer.parseInt(r[0]),
+						// Double.parseDouble(r[1]));
+						sspliter.changeSpliter(Constants.spliter);
+						String r = sspliter.next();
+						sspliter.changeSpliter(Constants.userSpliter);
+						if (r == null)
+							break;
+						rate.put(Integer.parseInt(uid), Double.parseDouble(r));
+					}
+					centers.put(key, rate);
 				}
 			} catch (IOException e) {
 				// TODO Auto-generated catch block
@@ -92,23 +118,55 @@ public class Kmeans {
 
 		private Text outKey = new Text();
 		private Text outVal = new Text();
+		private StringSpliter sspliter = new StringSpliter();
+		private StringSpliter mspliter = new StringSpliter();
+		private ArrayList<Integer> markArray = new ArrayList<Integer>();
 
+		/**
+		 * input key is movie id, value is cid/m1,m2,m3.../u1,r1/u2,r2/...;
+		 * output key is the center id that this movie belongs to, value is
+		 * mid:m1,m2,m3.../u1,r1/u2,r2/...
+		 */
 		public void map(Text key, Text value, Context context)
 				throws IOException, InterruptedException {
+
 			HashMap<Integer, Integer> urate = new HashMap<Integer, Integer>();
 			String val = value.toString();
-			String[] vals = val.split(Canopy.spliter);
+			sspliter.set(val, Constants.spliter);
 
-			// vals[0] is center, just ignore in map
-			String[] markString = vals[1].split(Canopy.userSpliter);
-			long[] marks = new long[markString.length];
-			for (int i = 0; i < markString.length; i++) {
-				marks[i] = Long.parseLong(markString[i]);
+			// vals[0] is center, just ignore here
+			if (sspliter.next() == null)
+				return;
+			// String[] vals = val.split(Constants.spliter);
+
+			String markString = sspliter.next();
+			if (markString == null)
+				return;
+			System.out.println("markString:"+markString);
+			markArray.clear();
+			String mark;
+			mspliter.set(markString, Constants.userSpliter);
+			while ((mark = mspliter.next()) != null) {
+				System.out.println("mark:"+mark);
+				markArray.add(Integer.parseInt(mark));
 			}
-			for (int i = 2; i < vals.length; i++) {
-				String[] r = vals[i].split(Canopy.userSpliter);
-				if (r.length == 2)
-					urate.put(Integer.parseInt(r[0]), Integer.parseInt(r[1]));
+			long[] marks = new long[markArray.size()];
+			for (int i = 0; i < markArray.size(); i++) {
+				marks[i] = markArray.get(i);
+			}
+
+			sspliter.changeSpliter(Constants.userSpliter);
+			String uid;
+			while ((uid = sspliter.next()) != null) {
+				// String[] r = vals[i].split(Constants.userSpliter);
+				// if (r.length == 2)
+				// urate.put(Integer.parseInt(r[0]), Integer.parseInt(r[1]));
+				sspliter.changeSpliter(Constants.spliter);
+				String r = sspliter.next();
+				sspliter.changeSpliter(Constants.userSpliter);
+				if (r == null)
+					break;
+				urate.put(Integer.parseInt(uid), Integer.parseInt(r));
 			}
 
 			Integer ckey = 0;
@@ -120,6 +178,8 @@ public class Kmeans {
 			for (Integer cid : centers.keySet()) {
 				Long[] cmark = centerMarks.get(cid);
 				boolean inf = true;
+				System.out
+						.println("length:" + cmark.length + "  " + marks.length);
 				if (cmark.length == marks.length) {
 					for (int i = 0; i < marks.length; i++) {
 						if ((cmark[i].longValue() & marks[i]) != 0) {
@@ -151,11 +211,12 @@ public class Kmeans {
 					ckey = cid;
 			}
 			outKey.set(ckey.toString());
-			outVal.set(key.toString() + mrSpliter + value.toString());
+			outVal.set(key.toString() + Constants.mrSpliter + value.toString());
 			context.write(outKey, outVal);
 		}
 	}
 
+	/** compute new center vector */
 	public static class Reduce extends Reducer<Text, Text, Text, Text> {
 
 		private HashMap<Integer, HashSet<Integer>> canopy = new HashMap<Integer, HashSet<Integer>>();
@@ -171,6 +232,7 @@ public class Kmeans {
 		@SuppressWarnings("rawtypes")
 		private MultipleOutputs mos;
 
+		/** read canopy centers in */
 		@SuppressWarnings({ "rawtypes", "unchecked" })
 		public void setup(Context context) throws IOException,
 				InterruptedException {
@@ -180,7 +242,7 @@ public class Kmeans {
 			for (Path cc : canopys) {
 				BufferedReader br = new BufferedReader(new FileReader(
 						cc.toString()));
-				Canopy.readCanopy(br, this.canopy);
+				Canopy.readCanopyCenter(br, canopy);
 			}
 			context.setStatus("Kmeans Reduce: read canopy success");
 		}
@@ -190,36 +252,56 @@ public class Kmeans {
 
 		private Text outCenter = new Text();
 
+		private StringSpliter sspliter = new StringSpliter();
+
 		@SuppressWarnings("unchecked")
 		public void reduce(Text key, Iterable<Text> value, Context context)
 				throws IOException, InterruptedException {
 			for (Text val : value) {
-				String[] vals = val.toString().split(mrSpliter);
-				if (vals.length == 2) {
-					outKey.set(vals[0]);
-					outVal.set(vals[1].replace("[0-9]", key.toString()));
-					context.write(outKey, outVal);
-					String[] users = vals[1].split(Canopy.spliter);
+				sspliter.set(val.toString(), Constants.mrSpliter);
+				String outkey = sspliter.next();
+				sspliter.changeSpliter(Constants.spliter);
+				sspliter.next();
+				String outval = sspliter.left();
+				if (outkey == null || outval == null)
+					continue;
 
-					// users[0] & users[1] are center & canopy, just ignore in
-					// reduce
-					for (int i = 2; i < users.length; i++) {
-						String[] u = users[i].split(Canopy.userSpliter);
-						if (u.length == 2) {
-							Integer k = Integer.parseInt(u[0]);
-							Double v = Double.parseDouble(u[1]);
-							if (counts.containsKey(k)) {
-								counts.put(k, counts.get(k) + 1);
-								sums.put(k, sums.get(k) + v);
-							} else {
-								counts.put(k, 1);
-								sums.put(k, v);
-							}
-						}
+				// String[] vals = val.toString().split(Constants.mrSpliter);
+				// if (vals.length == 2) {
+				outKey.set(outkey);
+				outVal.set(key.toString() + Constants.spliter + outval);
+				context.write(outKey, outVal);
+
+				// users[0] & users[1] are center & canopy, just ignore here
+				sspliter.next();
+
+				sspliter.changeSpliter(Constants.userSpliter);
+				// String[] users = vals[1].split(Constants.spliter);
+
+				String uid;
+				while ((uid = sspliter.next()) != null) {
+					// String[] u = users[i].split(Constants.userSpliter);
+					// if (u.length == 2) {
+					sspliter.changeSpliter(Constants.spliter);
+					String r = sspliter.next();
+					sspliter.changeSpliter(Constants.userSpliter);
+					if (r == null)
+						break;
+					Integer k = Integer.parseInt(uid);
+					Double v = Double.parseDouble(r);
+					if (counts.containsKey(k)) {
+						counts.put(k, counts.get(k) + 1);
+						sums.put(k, sums.get(k) + v);
+					} else {
+						counts.put(k, 1);
+						sums.put(k, v);
 					}
+					// }
 				}
+				// }
 			}
 
+			// begin computing
 			Iterator<Integer> itr = counts.keySet().iterator();
 
 			min.ensureCapacity(1000);
@@ -234,7 +316,9 @@ public class Kmeans {
 			}
 
 			Integer uid;
-			while ((uid = min.pop()) != null) {
+			Iterator<Integer> minItr = min.iterator();
+			while (minItr.hasNext()) {
+				uid = minItr.next();
 				newCenter.put(uid, sums.get(uid) / counts.get(uid));
 			}
 			long[] mark = new long[this.canopy.size() / Long.SIZE + 1];
@@ -244,24 +328,24 @@ public class Kmeans {
 				tmpSet.retainAll(newCenter.keySet());
 				int i = center.getKey() / Long.SIZE;
 				int j = center.getKey() % Long.SIZE;
-				
-				if (tmpSet.size() >= Canopy.weakMark)
+
+				if (tmpSet.size() >= Constants.weakMark)
 					mark[i] |= (1 << j);
 			}
 			StringBuffer sb = new StringBuffer();
 			sb.append(Long.toString(mark[0]));
 			for (int i = 1; i < mark.length; i++) {
-				sb.append(Canopy.userSpliter);
+				sb.append(Constants.userSpliter);
 				sb.append(Long.toString(mark[i]));
 			}
 			for (Entry<Integer, Double> user : newCenter.entrySet()) {
-				sb.append(Canopy.spliter);
+				sb.append(Constants.spliter);
 				sb.append(user.getKey().toString());
-				sb.append(Canopy.userSpliter);
+				sb.append(Constants.userSpliter);
 				sb.append(user.getValue().toString());
 			}
 			outCenter.set(sb.toString());
-			mos.write(CenterPrefix, key, outCenter);
+			mos.write(Constants.CenterPrefix, key, outCenter);
 		}
 
 		public void cleanup(Context context) throws IOException,
@@ -291,7 +375,8 @@ public class Kmeans {
 				job.setOutputValueClass(Text.class);
 				job.setInputFormatClass(KeyValueTextInputFormat.class);
 
-				job.getConfiguration().set(KMEANS_CENTERS_FILE, center);
+				job.getConfiguration().set(Constants.KMEANS_CENTERS_FILE,
+						center);
 				FileStatus[] canopyFiles = fs.globStatus(new Path(canopy));
 				for (FileStatus cf : canopyFiles) {
 					DistributedCache.addCacheFile(cf.getPath().toUri(),
@@ -300,11 +385,11 @@ public class Kmeans {
 
 				FileInputFormat.addInputPath(job, new Path(in));
 				FileOutputFormat.setOutputPath(job, new Path(out));
-				MultipleOutputs.addNamedOutput(job, CenterPrefix,
+				MultipleOutputs.addNamedOutput(job, Constants.CenterPrefix,
 						TextOutputFormat.class, Text.class, Text.class);
 				job.waitForCompletion(true);
 
-				center = out + "/" + CenterPrefix + "*";
+				center = out + "/" + Constants.CenterPrefix + "*";
 				in = out + "/part*";
 			}
 		} catch (Exception e) {
@@ -324,14 +409,25 @@ public class Kmeans {
 					.getRemainingArgs();
 
 			boolean raw = false;
+			int times = 3;
 
 			ArrayList<String> params = new ArrayList<String>();
-			for (String s : otherArgs) {
-				if (s.equals("-new")) {
+			for (int i = 0; i < otherArgs.length; i++) {
+				if (otherArgs[i].equals("-new")) {
 					raw = true;
 					continue;
+				} else if (otherArgs[i].equals("-n")) {
+					try {
+						times = Integer.parseInt(otherArgs[++i]);
+						if (times <= 0)
+							throw new NumberFormatException();
+					} catch (NumberFormatException e) {
+						System.err.println("wrong number format");
+						System.exit(-1);
+					}
+					continue;
 				}
-				params.add(s);
+				params.add(otherArgs[i]);
 			}
 
 			if (params.size() != 3) {
@@ -345,7 +441,7 @@ public class Kmeans {
 			String marked = params.get(0) + "_marked";
 			String canopyPath = params.get(2);
 			String canopy = params.get(2) + "/" + "canopys";
-			String init_center = marked + "/" + CenterPrefix;
+			String init_center = marked + "/" + Constants.CenterPrefix;
 			String out = params.get(1);
 
 			String[] paths = new String[4];
@@ -371,13 +467,13 @@ public class Kmeans {
 				}
 				marked = params.get(0) + "/part*";
 			}
-			init_center = marked + "/" + CenterPrefix + "*";
+			init_center = marked + "/" + Constants.CenterPrefix + "*";
 
 			paths[0] = canopy;
 			paths[1] = init_center;
 			paths[2] = marked + "/part*";
 			paths[3] = out;
-			Kmeans.run(paths, conf, 3);
+			Kmeans.run(paths, conf, times);
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();

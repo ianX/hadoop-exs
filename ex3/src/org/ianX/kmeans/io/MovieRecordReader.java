@@ -15,6 +15,7 @@ import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.lib.input.FileSplit;
 import org.apache.hadoop.util.LineReader;
+import org.ianX.kmeans.Constants;
 
 /**
  * Treats keys as offset in file and value as line.
@@ -86,16 +87,26 @@ public class MovieRecordReader extends RecordReader<LongWritable, Text> {
 					Math.max((int) Math.min(Integer.MAX_VALUE, end - pos),
 							maxLineLength));
 			pos += newSize;
-			sb.append(val.toString());
+			String s = val.toString().trim();
+			if (s.charAt(s.length() - 1) != ':') {
+				hasNext = false;
+				return false;
+			}
+			sb.append(s);
 		}
 		while (pos < end) {
 			newSize = in.readLine(val, maxLineLength,
 					Math.max((int) Math.min(Integer.MAX_VALUE, end - pos),
 							maxLineLength));
 			pos += newSize;
-			String line = val.toString();
-			sb.append(line.subSequence(0, line.lastIndexOf(',')));
-			sb.append("/");
+			char[] cs = val.toString().toCharArray();
+			int index = cs.length;
+			while (cs[--index] != ',')
+				;
+
+			sb.append(cs, 0, index);
+			// sb.append(line.substring(0, line.lastIndexOf(',')));
+			sb.append(Constants.spliter);
 		}
 
 		if (sb.length() > 0)
