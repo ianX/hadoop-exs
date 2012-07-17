@@ -42,13 +42,15 @@ public class Kmeans {
 				InterruptedException {
 			String cp = context.getConfiguration().get(
 					Constants.KMEANS_CENTERS_FILE, "");
-			if (cp.length() > 0) {
-				FileSystem fs = FileSystem.get(context.getConfiguration());
-				FileStatus[] files = fs.globStatus(new Path(cp));
-				for (FileStatus file : files) {
-					readCenters(file.getPath(), centers, centerMarks, fs);
-				}
+			assert (cp.length() > 0);
+			// System.out.println("center path: " + cp);
+			// if (cp.length() > 0) {
+			FileSystem fs = FileSystem.get(context.getConfiguration());
+			FileStatus[] files = fs.globStatus(new Path(cp));
+			for (FileStatus file : files) {
+				readCenters(file.getPath(), centers, centerMarks, fs);
 			}
+			// }
 			context.setStatus("Kmeans Map: read centers success");
 		}
 
@@ -70,6 +72,7 @@ public class Kmeans {
 					String keyString = sspliter.next();
 					if (keyString == null)
 						continue;
+					// System.out.println("key:" + keyString);
 					// if (words.length == 2) {
 					int key = Integer.parseInt(keyString);
 					sspliter.changeSpliter(Constants.spliter);
@@ -77,6 +80,7 @@ public class Kmeans {
 					String markString = sspliter.next();
 					// String[] vals = words[1].split(Constants.spliter);
 					if (markString != null) {
+						// System.out.print("mark:" + markString);
 						mspliter.set(markString, Constants.userSpliter);
 						markArray.clear();
 						String mark;
@@ -106,10 +110,13 @@ public class Kmeans {
 						sspliter.changeSpliter(Constants.userSpliter);
 						if (r == null)
 							break;
+						// System.out.print("uid:" + uid + "; r:" + r + "\t");
 						rate.put(Integer.parseInt(uid), Double.parseDouble(r));
 					}
+					// System.out.println();
 					centers.put(key, rate);
 				}
+				// System.out.println("csize:" + centers.size());
 			} catch (IOException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
@@ -121,6 +128,7 @@ public class Kmeans {
 		private StringSpliter sspliter = new StringSpliter();
 		private StringSpliter mspliter = new StringSpliter();
 		private ArrayList<Integer> markArray = new ArrayList<Integer>();
+		private HashMap<Integer, Integer> urate = new HashMap<Integer, Integer>();
 
 		/**
 		 * input key is movie id, value is cid/m1,m2,m3.../u1,r1/u2,r2/...;
@@ -130,7 +138,7 @@ public class Kmeans {
 		public void map(Text key, Text value, Context context)
 				throws IOException, InterruptedException {
 
-			HashMap<Integer, Integer> urate = new HashMap<Integer, Integer>();
+			urate.clear();
 			String val = value.toString();
 			sspliter.set(val, Constants.spliter);
 
@@ -142,12 +150,12 @@ public class Kmeans {
 			String markString = sspliter.next();
 			if (markString == null)
 				return;
-			System.out.println("markString:"+markString);
+			// System.out.println("markString:" + markString);
 			markArray.clear();
 			String mark;
 			mspliter.set(markString, Constants.userSpliter);
 			while ((mark = mspliter.next()) != null) {
-				System.out.println("mark:"+mark);
+				// System.out.println("mark:" + mark);
 				markArray.add(Integer.parseInt(mark));
 			}
 			long[] marks = new long[markArray.size()];
@@ -175,11 +183,12 @@ public class Kmeans {
 			double cross = 0;
 			double ulen = 0;
 			double clen = 0;
+			// System.out.println("center size:" + centers.size());
 			for (Integer cid : centers.keySet()) {
 				Long[] cmark = centerMarks.get(cid);
 				boolean inf = true;
-				System.out
-						.println("length:" + cmark.length + "  " + marks.length);
+				// System.out.println("length:" + cmark.length + "  "
+				// + marks.length);
 				if (cmark.length == marks.length) {
 					for (int i = 0; i < marks.length; i++) {
 						if ((cmark[i].longValue() & marks[i]) != 0) {
@@ -207,8 +216,12 @@ public class Kmeans {
 				ulen = ulen > 0 ? Math.sqrt(ulen) : 1;
 				clen = clen > 0 ? Math.sqrt(clen) : 1;
 				dis = cross / (ulen * clen);
-				if (dis < mindis)
+				// System.out.println("dis:" + dis + "; mindis:" + mindis
+				// + "; ckey:" + ckey + "; cid:" + cid);
+				if (dis < mindis) {
+					mindis = dis;
 					ckey = cid;
+				}
 			}
 			outKey.set(ckey.toString());
 			outVal.set(key.toString() + Constants.mrSpliter + value.toString());
@@ -261,6 +274,7 @@ public class Kmeans {
 				sspliter.set(val.toString(), Constants.mrSpliter);
 				String outkey = sspliter.next();
 				sspliter.changeSpliter(Constants.spliter);
+				// users[0] & users[1] are center & canopy, just ignore here
 				sspliter.next();
 				String outval = sspliter.left();
 				if (outkey == null || outval == null)
@@ -271,6 +285,7 @@ public class Kmeans {
 				outKey.set(outkey);
 				outVal.set(key.toString() + Constants.spliter + outval);
 				context.write(outKey, outVal);
+				//context.setStatus("processing: " + key.toString());
 
 				// users[0] & users[1] are center & canopy, just ignore here
 				sspliter.next();
@@ -306,9 +321,8 @@ public class Kmeans {
 
 			min.ensureCapacity(1000);
 			int size = 0;
-			while (itr.hasNext() && size < 1000) {
+			while (itr.hasNext() && size++ <= 1000) {
 				min.push(itr.next());
-				size++;
 			}
 
 			while (itr.hasNext()) {
@@ -322,12 +336,12 @@ public class Kmeans {
 				newCenter.put(uid, sums.get(uid) / counts.get(uid));
 			}
 			long[] mark = new long[this.canopy.size() / Long.SIZE + 1];
-			for (Entry<Integer, HashSet<Integer>> center : canopy.entrySet()) {
+			for (Entry<Integer, HashSet<Integer>> cc : canopy.entrySet()) {
 				tmpSet.clear();
-				tmpSet.addAll(center.getValue());
+				tmpSet.addAll(cc.getValue());
 				tmpSet.retainAll(newCenter.keySet());
-				int i = center.getKey() / Long.SIZE;
-				int j = center.getKey() % Long.SIZE;
+				int i = cc.getKey() / Long.SIZE;
+				int j = cc.getKey() % Long.SIZE;
 
 				if (tmpSet.size() >= Constants.weakMark)
 					mark[i] |= (1 << j);
@@ -354,6 +368,36 @@ public class Kmeans {
 		}
 	}
 
+	public static class ResMap extends Mapper<Text, Text, Text, Text> {
+		private Text outKey = new Text();
+
+		public void map(Text key, Text value, Context context)
+				throws IOException, InterruptedException {
+			String val = value.toString();
+			outKey.set(val.substring(0, val.indexOf(Constants.spliter)));
+			context.write(outKey, key);
+		}
+	}
+
+	public static class ResReduce extends Reducer<Text, Text, Text, Text> {
+
+		private Text outVal = new Text();
+
+		public void reduce(Text key, Iterable<Text> value, Context context)
+				throws IOException, InterruptedException {
+			Iterator<Text> itr = value.iterator();
+			if (!itr.hasNext())
+				return;
+			StringBuffer sb = new StringBuffer(itr.next().toString());
+			while (itr.hasNext()) {
+				sb.append(Constants.spliter);
+				sb.append(itr.next().toString());
+			}
+			outVal.set(sb.toString());
+			context.write(key, outVal);
+		}
+	}
+
 	/** args[0]:canopy; args[1]:init center; args[2]:marked data; args[3]:outdir */
 	public static int run(String[] args, Configuration conf, int n) {
 		try {
@@ -363,10 +407,7 @@ public class Kmeans {
 			String in = args[2];
 			String out = "";
 			for (int i = 0; i < n; i++) {
-				if (i == n - 1)
-					out = args[3];
-				else
-					out = args[3] + "_" + i;
+				out = args[3] + "_" + i;
 				Job job = new Job(conf, "kmeans");
 				job.setJarByClass(Kmeans.class);
 				job.setMapperClass(Map.class);
@@ -392,6 +433,21 @@ public class Kmeans {
 				center = out + "/" + Constants.CenterPrefix + "*";
 				in = out + "/part*";
 			}
+
+			Job res = new Job(conf, "result");
+			res.setJarByClass(Kmeans.class);
+			res.setMapperClass(ResMap.class);
+			res.setCombinerClass(ResReduce.class);
+			res.setReducerClass(ResReduce.class);
+			res.setOutputKeyClass(Text.class);
+			res.setOutputValueClass(Text.class);
+			res.setInputFormatClass(KeyValueTextInputFormat.class);
+
+			out = args[3];
+			FileInputFormat.addInputPath(res, new Path(in));
+			FileOutputFormat.setOutputPath(res, new Path(out));
+
+			res.waitForCompletion(true);
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -465,7 +521,7 @@ public class Kmeans {
 					System.err.println("canopy file error");
 					System.exit(-1);
 				}
-				marked = params.get(0) + "/part*";
+				marked = params.get(0);
 			}
 			init_center = marked + "/" + Constants.CenterPrefix + "*";
 

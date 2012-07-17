@@ -22,7 +22,6 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.IntWritable;
-import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
@@ -32,7 +31,6 @@ import org.apache.hadoop.mapreduce.lib.input.KeyValueTextInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.MultipleOutputs;
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
-import org.ianX.kmeans.io.MovieInputFormat;
 import org.ianX.util.StringSpliter;
 
 public class Canopy {
@@ -41,17 +39,18 @@ public class Canopy {
 	 * input : one movie(value[mid:u1,r1/u2,r2...]); output key is a reduce id,
 	 * output value is the input movie
 	 */
-	public static class Map extends
-			Mapper<LongWritable, Text, IntWritable, Text> {
+	public static class Map extends Mapper<Text, Text, IntWritable, Text> {
 
 		private IntWritable outKey = new IntWritable();
+		private Text outVal = new Text();
 
-		public void map(LongWritable key, Text value, Context context)
+		public void map(Text key, Text value, Context context)
 				throws IOException, InterruptedException {
-			String val = value.toString();
-			int id = Integer.parseInt(val.substring(0, val.indexOf(':'))) & 127;
+			// String val = value.toString();
+			int id = Integer.parseInt(key.toString()) & 127;
 			outKey.set(id);
-			context.write(outKey, value);
+			outVal.set(key.toString() + Constants.mrSpliter + value.toString());
+			context.write(outKey, outVal);
 		}
 	}
 
@@ -107,7 +106,7 @@ public class Canopy {
 			centers.clear();
 
 			for (Text val : value) {
-				sspliter.set(val.toString(), ':');
+				sspliter.set(val.toString(), Constants.mrSpliter);
 				String outkey = sspliter.next();
 				String outval = sspliter.left();
 				if (outkey == null || outval == null)
@@ -127,7 +126,7 @@ public class Canopy {
 					sspliter.changeSpliter(Constants.spliter);
 					String urate = sspliter.next();
 					sspliter.changeSpliter(Constants.userSpliter);
-					
+
 					if (urate == null)
 						break;
 					userID.add(Integer.parseInt(uid));
@@ -201,7 +200,7 @@ public class Canopy {
 				throws IOException, InterruptedException {
 
 			urate.clear();
-			
+
 			boolean iscc = false;
 			String val = value.toString();
 
@@ -219,7 +218,7 @@ public class Canopy {
 					break;
 				urate.add(Integer.parseInt(uid));
 			}
-			
+
 			long[] mark = new long[this.canopy.size() / Long.SIZE + 1];
 			for (Entry<Integer, HashSet<Integer>> cc : this.canopy.entrySet()) {
 				if (cid.contains(Integer.parseInt(key.toString())))
@@ -239,9 +238,9 @@ public class Canopy {
 			StringBuffer out = new StringBuffer();
 			out.append(Integer.toString(1));
 			out.append(Constants.spliter);
-			
+
 			int offset = out.length();
-			
+
 			out.append(Long.toString(mark[0]));
 			for (int i = 1; i < mark.length; i++) {
 				out.append(Constants.userSpliter);
@@ -436,7 +435,7 @@ public class Canopy {
 			job.setMapOutputValueClass(Text.class);
 			job.setOutputKeyClass(Text.class);
 			job.setOutputValueClass(Text.class);
-			job.setInputFormatClass(MovieInputFormat.class);
+			job.setInputFormatClass(KeyValueTextInputFormat.class);
 			FileInputFormat.addInputPath(job, new Path(args[0]));
 			FileOutputFormat.setOutputPath(job, new Path(args[1]));
 			String cpath = args[0] + "_canopys";
