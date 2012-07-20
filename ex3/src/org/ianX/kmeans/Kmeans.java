@@ -43,14 +43,11 @@ public class Kmeans {
 			String cp = context.getConfiguration().get(
 					Constants.KMEANS_CENTERS_FILE, "");
 			assert (cp.length() > 0);
-			// System.out.println("center path: " + cp);
-			// if (cp.length() > 0) {
 			FileSystem fs = FileSystem.get(context.getConfiguration());
 			FileStatus[] files = fs.globStatus(new Path(cp));
 			for (FileStatus file : files) {
 				readCenters(file.getPath(), centers, centerMarks, fs);
 			}
-			// }
 			context.setStatus("Kmeans Map: read centers success");
 		}
 
@@ -68,27 +65,20 @@ public class Kmeans {
 				String line;
 				while ((line = br.readLine()) != null) {
 					sspliter.set(line, '\t');
-					// String[] words = line.split("\t");
 					String keyString = sspliter.next();
 					if (keyString == null)
 						continue;
-					// System.out.println("key:" + keyString);
-					// if (words.length == 2) {
 					int key = Integer.parseInt(keyString);
 					sspliter.changeSpliter(Constants.spliter);
 
 					String markString = sspliter.next();
-					// String[] vals = words[1].split(Constants.spliter);
 					if (markString != null) {
-						// System.out.print("mark:" + markString);
 						mspliter.set(markString, Constants.userSpliter);
 						markArray.clear();
 						String mark;
 						while ((mark = mspliter.next()) != null) {
 							markArray.add(Long.parseLong(mark));
 						}
-						// String[] markString = vals[0]
-						// .split(Constants.userSpliter);
 						Long[] marks = new Long[markArray.size()];
 						for (int i = 0; i < markArray.size(); i++) {
 							marks[i] = markArray.get(i);
@@ -101,22 +91,15 @@ public class Kmeans {
 					sspliter.changeSpliter(Constants.userSpliter);
 					String uid;
 					while ((uid = sspliter.next()) != null) {
-						// String[] r = vals[i].split(Constants.userSpliter);
-						// if (r.length == 2)
-						// rate.put(Integer.parseInt(r[0]),
-						// Double.parseDouble(r[1]));
 						sspliter.changeSpliter(Constants.spliter);
 						String r = sspliter.next();
 						sspliter.changeSpliter(Constants.userSpliter);
 						if (r == null)
 							break;
-						// System.out.print("uid:" + uid + "; r:" + r + "\t");
 						rate.put(Integer.parseInt(uid), Double.parseDouble(r));
 					}
-					// System.out.println();
 					centers.put(key, rate);
 				}
-				// System.out.println("csize:" + centers.size());
 			} catch (IOException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
@@ -138,24 +121,20 @@ public class Kmeans {
 		public void map(Text key, Text value, Context context)
 				throws IOException, InterruptedException {
 
+			markArray.clear();
 			urate.clear();
 			String val = value.toString();
 			sspliter.set(val, Constants.spliter);
 
-			// vals[0] is center, just ignore here
 			if (sspliter.next() == null)
 				return;
-			// String[] vals = val.split(Constants.spliter);
 
 			String markString = sspliter.next();
 			if (markString == null)
 				return;
-			// System.out.println("markString:" + markString);
-			markArray.clear();
 			String mark;
 			mspliter.set(markString, Constants.userSpliter);
 			while ((mark = mspliter.next()) != null) {
-				// System.out.println("mark:" + mark);
 				markArray.add(Integer.parseInt(mark));
 			}
 			long[] marks = new long[markArray.size()];
@@ -166,9 +145,6 @@ public class Kmeans {
 			sspliter.changeSpliter(Constants.userSpliter);
 			String uid;
 			while ((uid = sspliter.next()) != null) {
-				// String[] r = vals[i].split(Constants.userSpliter);
-				// if (r.length == 2)
-				// urate.put(Integer.parseInt(r[0]), Integer.parseInt(r[1]));
 				sspliter.changeSpliter(Constants.spliter);
 				String r = sspliter.next();
 				sspliter.changeSpliter(Constants.userSpliter);
@@ -178,17 +154,16 @@ public class Kmeans {
 			}
 
 			Integer ckey = 0;
-			double mindis = Double.MAX_VALUE;
+			double max = -1;
 			double dis = 0;
 			double cross = 0;
 			double ulen = 0;
 			double clen = 0;
-			// System.out.println("center size:" + centers.size());
+			double c;
+			double u;
 			for (Integer cid : centers.keySet()) {
 				Long[] cmark = centerMarks.get(cid);
 				boolean inf = true;
-				// System.out.println("length:" + cmark.length + "  "
-				// + marks.length);
 				if (cmark.length == marks.length) {
 					for (int i = 0; i < marks.length; i++) {
 						if ((cmark[i].longValue() & marks[i]) != 0) {
@@ -207,19 +182,17 @@ public class Kmeans {
 				ulen = 0;
 				clen = 0;
 				for (Integer rate : tmpSet) {
-					double c = cval.get(rate).doubleValue();
-					double u = urate.get(rate).doubleValue();
+					c = cval.get(rate).doubleValue();
+					u = urate.get(rate).doubleValue();
 					cross += c * u;
 					ulen += u * u;
 					clen += c * c;
 				}
-				ulen = ulen > 0 ? Math.sqrt(ulen) : 1;
-				clen = clen > 0 ? Math.sqrt(clen) : 1;
-				dis = cross / (ulen * clen);
-				// System.out.println("dis:" + dis + "; mindis:" + mindis
-				// + "; ckey:" + ckey + "; cid:" + cid);
-				if (dis < mindis) {
-					mindis = dis;
+				ulen = ulen > 0 ? ulen : 1;
+				clen = clen > 0 ? clen : 1;
+				dis = tmpSet.size() * cross * cross / (ulen * clen);
+				if (dis > max) {
+					max = dis;
 					ckey = cid;
 				}
 			}
@@ -233,13 +206,7 @@ public class Kmeans {
 	public static class Reduce extends Reducer<Text, Text, Text, Text> {
 
 		private HashMap<Integer, HashSet<Integer>> canopy = new HashMap<Integer, HashSet<Integer>>();
-		private HashMap<Integer, Integer> counts = new HashMap<Integer, Integer>();
-		private HashMap<Integer, Double> sums = new HashMap<Integer, Double>();
-		private MapComprator<Integer, Integer> mc = new MapComprator<Integer, Integer>(
-				counts);
-		private MinHeap<Integer> min = new MinHeap<Integer>(mc);
 
-		private HashMap<Integer, Double> newCenter = new HashMap<Integer, Double>();
 		private HashSet<Integer> tmpSet = new HashSet<Integer>();
 
 		@SuppressWarnings("rawtypes")
@@ -267,9 +234,23 @@ public class Kmeans {
 
 		private StringSpliter sspliter = new StringSpliter();
 
+		private HashMap<Integer, Integer> counts = new HashMap<Integer, Integer>();
+		private HashMap<Integer, Double> sums = new HashMap<Integer, Double>();
+		private MapComprator<Integer, Integer> mc = new MapComprator<Integer, Integer>(
+				counts);
+		private MinHeap<Integer> min = new MinHeap<Integer>(mc);
+
+		private HashMap<Integer, Double> newCenter = new HashMap<Integer, Double>();
+
 		@SuppressWarnings("unchecked")
 		public void reduce(Text key, Iterable<Text> value, Context context)
 				throws IOException, InterruptedException {
+
+			counts.clear();
+			sums.clear();
+			newCenter.clear();
+			min.clear();
+
 			for (Text val : value) {
 				sspliter.set(val.toString(), Constants.mrSpliter);
 				String outkey = sspliter.next();
@@ -280,23 +261,17 @@ public class Kmeans {
 				if (outkey == null || outval == null)
 					continue;
 
-				// String[] vals = val.toString().split(Constants.mrSpliter);
-				// if (vals.length == 2) {
 				outKey.set(outkey);
 				outVal.set(key.toString() + Constants.spliter + outval);
 				context.write(outKey, outVal);
-				//context.setStatus("processing: " + key.toString());
 
 				// users[0] & users[1] are center & canopy, just ignore here
 				sspliter.next();
 
 				sspliter.changeSpliter(Constants.userSpliter);
-				// String[] users = vals[1].split(Constants.spliter);
 
 				String uid;
 				while ((uid = sspliter.next()) != null) {
-					// String[] u = users[i].split(Constants.userSpliter);
-					// if (u.length == 2) {
 					sspliter.changeSpliter(Constants.spliter);
 					String r = sspliter.next();
 					sspliter.changeSpliter(Constants.userSpliter);
@@ -311,9 +286,7 @@ public class Kmeans {
 						counts.put(k, 1);
 						sums.put(k, v);
 					}
-					// }
 				}
-				// }
 			}
 
 			// begin computing
@@ -328,6 +301,8 @@ public class Kmeans {
 			while (itr.hasNext()) {
 				min.change(itr.next());
 			}
+
+			// min.print();
 
 			Integer uid;
 			Iterator<Integer> minItr = min.iterator();

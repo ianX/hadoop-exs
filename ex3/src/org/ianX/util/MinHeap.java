@@ -64,7 +64,7 @@ public class MinHeap<E> {
 
 		E ret = data.get(0);
 
-		if (set.contains(e) || comparator.compare(ret, e) < 0)
+		if (set.contains(e) || comparator.compare(ret, e) > 0)
 			return e;
 
 		set.add(e);
@@ -87,12 +87,17 @@ public class MinHeap<E> {
 		}
 		return ret;
 	}
-	
-	public Iterator<E> iterator(){
+
+	public Iterator<E> iterator() {
 		return data.iterator();
 	}
 
 	public int size() {
 		return data.size();
+	}
+
+	public void clear() {
+		this.data.clear();
+		this.set.clear();
 	}
 }

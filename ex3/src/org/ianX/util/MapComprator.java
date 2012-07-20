@@ -17,5 +17,9 @@ public class MapComprator<K, V extends Comparable<V>> implements Comparator<K> {
 		// TODO Auto-generated method stub
 		return map.get(o1).compareTo(map.get(o2));
 	}
+	
+	public V get(K k){
+		return map.get(k);
+	}
 
 }

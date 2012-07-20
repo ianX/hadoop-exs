@@ -46,7 +46,6 @@ public class Canopy {
 
 		public void map(Text key, Text value, Context context)
 				throws IOException, InterruptedException {
-			// String val = value.toString();
 			int id = Integer.parseInt(key.toString()) & 127;
 			outKey.set(id);
 			outVal.set(key.toString() + Constants.mrSpliter + value.toString());
@@ -63,8 +62,6 @@ public class Canopy {
 
 		private FileSystem fs;
 		private String path;
-		private TreeMap<Integer, HashSet<Integer>> points = new TreeMap<Integer, HashSet<Integer>>();
-		private HashMap<Integer, HashSet<Integer>> centers = new HashMap<Integer, HashSet<Integer>>();
 
 		private Text outKey = new Text();
 		private Text outVal = new Text();
@@ -100,6 +97,9 @@ public class Canopy {
 
 		private StringSpliter sspliter = new StringSpliter();
 
+		private TreeMap<Integer, HashSet<Integer>> points = new TreeMap<Integer, HashSet<Integer>>();
+		private HashMap<Integer, HashSet<Integer>> centers = new HashMap<Integer, HashSet<Integer>>();
+
 		public void reduce(IntWritable key, Iterable<Text> value,
 				Context context) throws IOException, InterruptedException {
 			points.clear();
@@ -112,17 +112,10 @@ public class Canopy {
 				if (outkey == null || outval == null)
 					continue;
 
-				// String[] v = val.toString().split(":");
-				// if (v.length != 2)
-				// continue;
-				// String[] uids = v[1].split(Constants.spliter);
 				sspliter.set(outval, Constants.userSpliter);
 				HashSet<Integer> userID = new HashSet<Integer>();
 				String uid;
 				while ((uid = sspliter.next()) != null) {
-					// String[] u = uid.split(Constants.userSpliter);
-					// if (u.length == 2)
-					// userID.add(Integer.parseInt(u[0]));
 					sspliter.changeSpliter(Constants.spliter);
 					String urate = sspliter.next();
 					sspliter.changeSpliter(Constants.userSpliter);
@@ -158,15 +151,9 @@ public class Canopy {
 		@SuppressWarnings("rawtypes")
 		private MultipleOutputs mos;
 
-		// private HashMap<String, ArrayList<Boolean>> marks = new
-		// HashMap<String, ArrayList<Boolean>>();
-		// private String markPath;
-
 		@SuppressWarnings({ "unchecked", "rawtypes" })
 		public void setup(Context context) throws IOException,
 				InterruptedException {
-			// markPath = context.getConfiguration()
-			// .get("kmeans.canopy.marks", "");
 			String cidPath = context.getConfiguration().get(
 					Constants.KMEANS_CANOPY_MOVIEID);
 			ObjectInputStream ois = new ObjectInputStream(FileSystem.get(
@@ -192,6 +179,7 @@ public class Canopy {
 
 		private Text outVal = new Text();
 		private StringSpliter sspliter = new StringSpliter();
+
 		private HashSet<Integer> urate = new HashSet<Integer>();
 
 		@SuppressWarnings("unchecked")
@@ -204,13 +192,9 @@ public class Canopy {
 			boolean iscc = false;
 			String val = value.toString();
 
-			// String[] users = val.split(Constants.spliter);
 			sspliter.set(val, Constants.userSpliter);
 			String uid;
 			while ((uid = sspliter.next()) != null) {
-				// String[] r = user.split(Constants.userSpliter);
-				// if (r.length == 2)
-				// urate.add(Integer.parseInt(r[0]));
 				sspliter.changeSpliter(Constants.spliter);
 				String u = sspliter.next();
 				sspliter.changeSpliter(Constants.userSpliter);
@@ -233,6 +217,18 @@ public class Canopy {
 
 				if (iscc || tmpSet.size() >= Constants.weakMark)
 					mark[i] |= (1 << j);
+			}
+
+			boolean alone = true;
+			for (long m : mark) {
+				if (m != 0) {
+					alone = false;
+					break;
+				}
+			}
+			if (alone) {
+				for (int i = 0; i < mark.length; i++)
+					mark[i] = 0xFFFFFFFFFFFFFFFFL;
 			}
 
 			StringBuffer out = new StringBuffer();
@@ -259,23 +255,6 @@ public class Canopy {
 				InterruptedException {
 			mos.close();
 		}
-
-		/*
-		 * private void writeMarks(Context context) { try { FSDataOutputStream
-		 * fsds = FileSystem.get( context.getConfiguration()).create( new
-		 * Path(this.markPath + "/mark-m-" +
-		 * context.getTaskAttemptID().getId())); BufferedWriter bw = new
-		 * BufferedWriter(new OutputStreamWriter( fsds)); for (Entry<String,
-		 * ArrayList<Boolean>> mark : marks.entrySet()) {
-		 * bw.append(mark.getKey() + "\t"); for (Boolean m : mark.getValue()) {
-		 * bw.append(m ? "1" : "0"); } bw.newLine(); } bw.close(); } catch
-		 * (IOException e) { // TODO Auto-generated catch block
-		 * e.printStackTrace(); } }
-		 * 
-		 * 
-		 * @Override public void cleanup(Context context) throws IOException,
-		 * InterruptedException { writeMarks(context); }
-		 */
 	}
 
 	/**
@@ -288,9 +267,6 @@ public class Canopy {
 			String t;
 			while ((t = br.readLine()) != null) {
 				sspliter.set(t, Constants.spliter);
-				// String[] v = t.split(Constants.spliter);
-				// if (v.length == 0)
-				// continue;
 				String mid = sspliter.next();
 				if (mid == null)
 					continue;
@@ -362,7 +338,7 @@ public class Canopy {
 					tmp.clear();
 					tmp.addAll(point.getValue());
 					tmp.retainAll(center.getValue());
-					if (tmp.size() < Constants.strongMark)
+					if (tmp.size() < Constants.strongerMark)
 						left.put(point.getKey(), point.getValue());
 				}
 				HashMap<Integer, HashSet<Integer>> exchange = points;

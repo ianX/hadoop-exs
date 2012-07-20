@@ -14,6 +14,7 @@ public class Constants {
 	public static final char userSpliter = ',';
 	
 	public static final int strongMark = 8;
+	public static final int strongerMark = 12;
 	public static final int weakMark = 2;
 
 }
