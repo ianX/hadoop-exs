@@ -4,10 +4,10 @@ import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 
+import org.rs.server.io.DataGetter;
+import org.rs.server.io.MasterDataGetter;
 import org.rs.servernode.master.ServerMaster;
 import org.rs.servernode.master.event.DTEventListenser;
-import org.rs.servernode.master.io.DataGetter;
-import org.rs.servernode.master.io.MasterDataGetter;
 
 public class Server {
 

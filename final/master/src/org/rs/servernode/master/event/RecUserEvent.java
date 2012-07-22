@@ -4,7 +4,7 @@ import java.util.EventObject;
 import java.util.Vector;
 
 import org.rs.object.User;
-import org.rs.servernode.master.io.DataGetter;
+import org.rs.server.io.DataGetter;
 
 public class RecUserEvent extends EventObject {
 

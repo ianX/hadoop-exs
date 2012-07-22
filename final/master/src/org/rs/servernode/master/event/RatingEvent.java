@@ -5,7 +5,7 @@ import java.util.Map;
 import java.util.Vector;
 
 import org.rs.object.Movie;
-import org.rs.servernode.master.io.DataGetter;
+import org.rs.server.io.DataGetter;
 
 public class RatingEvent extends EventObject {
 

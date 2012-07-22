@@ -16,7 +16,7 @@ import org.rs.object.Movie;
 import org.rs.object.User;
 import org.rs.protocol.CSPServer;
 import org.rs.protocol.Commands;
-import org.rs.servernode.master.io.DataGetter;
+import org.rs.server.io.DataGetter;
 
 public class ServerHandler implements ServerHandlerInterface {
 

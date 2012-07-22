@@ -15,7 +15,6 @@ import org.rs.servernode.protocol.SSPServer;
 public class ServerMaster implements Master {
 
 	private HeartBeat heartbeat;
-	private SSPServer sssp = new SSPServer();
 
 	private boolean mUpdated = false;
 	private Vector<Movie> movieList;
@@ -56,6 +55,34 @@ public class ServerMaster implements Master {
 	}
 
 	@Override
+	public void handleRatingEvent(RatingEvent event) {
+		// TODO Auto-generated method stub
+		if (event.isMovie()) {
+			this.getMovieVector(event.getUrating(), event.getRet());
+		} else {
+			this.getUserVector(event.getUrating(), event.getRet());
+		}
+	}
+
+	@Override
+	public void handleListMovieEvent(ListMovieEvent event) {
+		// TODO Auto-generated method stub
+		this.getMovieList(event.getRet());
+	}
+
+	@Override
+	public void handleRecMovieEvent(RecMovieEvent event) {
+		// TODO Auto-generated method stub
+		this.getRecMovie(event.getMovieVector(), event.getRet());
+	}
+
+	@Override
+	public void handleRecUserEvent(RecUserEvent event) {
+		// TODO Auto-generated method stub
+		this.getRecUser(event.getUserVector(), event.getRet());
+	}
+
+	@Override
 	public void run() {
 		// TODO Auto-generated method stub
 
@@ -86,33 +113,4 @@ public class ServerMaster implements Master {
 		ret.clear();
 		ret.addAll(recUser);
 	}
-
-	@Override
-	public void handleRatingEvent(RatingEvent event) {
-		// TODO Auto-generated method stub
-		if (event.isMovie()) {
-			this.getMovieVector(event.getUrating(), event.getRet());
-		} else {
-			this.getUserVector(event.getUrating(), event.getRet());
-		}
-	}
-
-	@Override
-	public void handleListMovieEvent(ListMovieEvent event) {
-		// TODO Auto-generated method stub
-		this.getMovieList(event.getRet());
-	}
-
-	@Override
-	public void handleRecMovieEvent(RecMovieEvent event) {
-		// TODO Auto-generated method stub
-		this.getRecMovie(event.getMovieVector(), event.getRet());
-	}
-
-	@Override
-	public void handleRecUserEvent(RecUserEvent event) {
-		// TODO Auto-generated method stub
-		this.getRecUser(event.getUserVector(), event.getRet());
-	}
-
 }
