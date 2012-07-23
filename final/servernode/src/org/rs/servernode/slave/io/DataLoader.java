@@ -8,8 +8,7 @@ import org.rs.object.Movie;
 import org.rs.object.User;
 
 public interface DataLoader {
-
-	public void addFiles(Set<String> files);
+	public void addFiles(Set<String> files, boolean isMovie);
 
 	public void filesToRemove(Set<String> files);
 

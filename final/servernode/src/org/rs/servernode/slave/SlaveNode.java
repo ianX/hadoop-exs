@@ -9,10 +9,54 @@ import java.util.HashSet;
 import java.util.Set;
 
 import org.rs.servernode.protocol.Properties;
-import org.rs.servernode.protocol.SSPNode;
 import org.rs.servernode.slave.io.SlaveDataLoader;
 
 public class SlaveNode implements Slave {
+
+	private class AddFilesHandler implements Runnable {
+
+		private Set<String> files;
+		private boolean isMovie;
+
+		public AddFilesHandler(Set<String> files, boolean isMovie) {
+			// TODO Auto-generated constructor stub
+			this.files = files;
+			this.isMovie = isMovie;
+		}
+
+		@Override
+		public void run() {
+			// TODO Auto-generated method stub
+			dataLoader.addFiles(files, isMovie);
+		}
+
+	}
+
+	private class FilesToRemoveHandler implements Runnable {
+
+		private Set<String> files;
+
+		public FilesToRemoveHandler(Set<String> files) {
+			// TODO Auto-generated constructor stub
+			this.files = files;
+		}
+
+		@Override
+		public void run() {
+			// TODO Auto-generated method stub
+			dataLoader.filesToRemove(files);
+		}
+
+	}
+
+	private class RemoveMarkedFiles implements Runnable {
+
+		@Override
+		public void run() {
+			// TODO Auto-generated method stub
+			dataLoader.removeMarkedFiles();
+		}
+	}
 
 	private class HeartBeat implements Runnable {
 
@@ -85,33 +129,16 @@ public class SlaveNode implements Slave {
 				case Properties.ADD_FILES:
 					final Set<String> files = (HashSet<String>) ois
 							.readObject();
-					new Thread(new Runnable() {
-						@Override
-						public void run() {
-							// TODO Auto-generated method stub
-							dataLoader.addFiles(files);
-						}
-					}).start();
+					final boolean isMovie = ois.readBoolean();
+					new Thread(new AddFilesHandler(files, isMovie)).start();
 					break;
 				case Properties.FILES_TO_REOMVE:
 					final Set<String> filesToRemove = (HashSet<String>) ois
 							.readObject();
-					new Thread(new Runnable() {
-						@Override
-						public void run() {
-							// TODO Auto-generated method stub
-							dataLoader.filesToRemove(filesToRemove);
-						}
-					}).start();
+					new Thread(new FilesToRemoveHandler(filesToRemove)).start();
 					break;
 				case Properties.REMOVE_MARKED_FILES:
-					new Thread(new Runnable() {
-						@Override
-						public void run() {
-							// TODO Auto-generated method stub
-							dataLoader.removeMarkedFiles();
-						}
-					}).start();
+					new Thread(new RemoveMarkedFiles()).start();
 					break;
 				default:
 				}
@@ -128,8 +155,7 @@ public class SlaveNode implements Slave {
 	public static void main(String[] args) {
 		if (args.length != 2)
 			System.out.println("usage : servernode masterHost nodeID");
-		SlaveNode slaveNode = new SlaveNode(args[0],
-				Integer.parseInt(args[2]));
+		SlaveNode slaveNode = new SlaveNode(args[0], Integer.parseInt(args[2]));
 		if (slaveNode.initNode() == 0)
 			slaveNode.start();
 		System.out.println("connect error");

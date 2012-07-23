@@ -11,7 +11,7 @@ import org.rs.object.User;
 public class SlaveDataLoader implements DataLoader {
 
 	@Override
-	public void addFiles(Set<String> files) {
+	public void addFiles(Set<String> files, boolean isMovie) {
 		// TODO Auto-generated method stub
 
 	}
