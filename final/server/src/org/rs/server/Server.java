@@ -24,7 +24,7 @@ public class Server {
 		try {
 			serverSocket = new ServerSocket(port, maxLinker);
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
+			e.printStackTrace();
 			System.err.println("can't open socket, exit.");
 		}
 		while (true) {
@@ -33,7 +33,6 @@ public class Server {
 				socket = serverSocket.accept();
 				new Thread(new ServerHandler(socket, db)).start();
 			} catch (IOException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 		}

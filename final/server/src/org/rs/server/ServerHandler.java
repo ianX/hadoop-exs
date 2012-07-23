@@ -43,7 +43,6 @@ public class ServerHandler implements ServerHandlerInterface {
 	private ObjectInputStream dataReader = null;
 
 	public ServerHandler(Socket messager, DataGetter db) throws IOException {
-		// TODO Auto-generated constructor stub
 		sprotocol = new CSPServer();
 		this.db = db;
 		this.messager = messager;
@@ -55,7 +54,6 @@ public class ServerHandler implements ServerHandlerInterface {
 
 	@Override
 	public void run() {
-		// TODO Auto-generated method stub
 		try {
 			String cmd;
 			while ((cmd = cmdReader.readLine()) != null) {
@@ -72,7 +70,6 @@ public class ServerHandler implements ServerHandlerInterface {
 				}
 			}
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 			this.close();
 		}
@@ -80,7 +77,6 @@ public class ServerHandler implements ServerHandlerInterface {
 
 	@Override
 	public RetCode createDataSocket() {
-		// TODO Auto-generated method stub
 		try {
 			datatransporter = sprotocol.getDataSocket(cmdWriter, cmdReader);
 
@@ -98,7 +94,6 @@ public class ServerHandler implements ServerHandlerInterface {
 
 	@Override
 	public RetCode close() {
-		// TODO Auto-generated method stub
 		try {
 			this.dataWriter.close();
 			this.dataReader.close();
@@ -109,7 +104,6 @@ public class ServerHandler implements ServerHandlerInterface {
 			this.cmdReader.close();
 			this.messager.close();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 			return RetCode.closeFailed;
 		}
@@ -118,8 +112,7 @@ public class ServerHandler implements ServerHandlerInterface {
 
 	@Override
 	public RetCode sendMovieList() {
-		// TODO Auto-generated method stub
-		//System.out.println("sending movie list");
+		// System.out.println("sending movie list");
 		if (sprotocol.sendMovieList(db.getMovieList(movieList), cmdReader,
 				cmdWriter, dataWriter, dataReader) != 0)
 			return RetCode.sendMovieListFailed;
@@ -128,7 +121,6 @@ public class ServerHandler implements ServerHandlerInterface {
 
 	@Override
 	public RetCode sendRecMovie() {
-		// TODO Auto-generated method stub
 		if (sprotocol.sendRecMovie(db.getRecMovie(movieVector, recMovie),
 				cmdReader, cmdWriter, dataWriter, dataReader) != 0)
 			return RetCode.sendRecMovieFailed;
@@ -137,7 +129,6 @@ public class ServerHandler implements ServerHandlerInterface {
 
 	@Override
 	public RetCode sendRecUser() {
-		// TODO Auto-generated method stub
 		if (sprotocol.sendRecUser(db.getRecUser(userVector, recUser),
 				cmdReader, cmdWriter, dataWriter, dataReader) != 0)
 			return RetCode.sendRecUserFailed;
@@ -146,7 +137,6 @@ public class ServerHandler implements ServerHandlerInterface {
 
 	@Override
 	public RetCode receiveRating() {
-		// TODO Auto-generated method stub
 		if (sprotocol.receiveRating(userRating, cmdReader, cmdWriter,
 				dataWriter, dataReader) != 0)
 			return RetCode.receiveRatingFailed;
@@ -157,7 +147,6 @@ public class ServerHandler implements ServerHandlerInterface {
 
 	@Override
 	public RetCode cmdHandler(String cmd) {
-		// TODO Auto-generated method stub
 		if (cmd.equals(Commands.GET_DATA_PORT)) {
 			RetCode createDataSocketRetCode = createDataSocket();
 			if (!createDataSocketRetCode.equals(RetCode.good)) {

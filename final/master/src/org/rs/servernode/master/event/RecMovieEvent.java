@@ -16,7 +16,6 @@ public class RecMovieEvent extends EventObject {
 	public RecMovieEvent(DataGetter source, Vector<Double> movieVector,
 			Vector<Movie> ret) {
 		super(source);
-		// TODO Auto-generated constructor stub
 		this.db = source;
 		this.movieVector = movieVector;
 		this.ret = ret;

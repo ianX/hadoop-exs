@@ -37,7 +37,6 @@ public class ServerMaster implements Master {
 
 	@Override
 	public void startHeartBeat() {
-		// TODO Auto-generated method stub
 		heartbeat = new HeartBeat();
 		heartbeat.addHeartBeatEventListener(this);
 		new Thread(heartbeat).start();
@@ -45,6 +44,7 @@ public class ServerMaster implements Master {
 
 	@Override
 	public int InitAssemblage() {
+		registeredNode.add(0);
 		// TODO Auto-generated method stub
 		control.init(nodeStatus, registeredNode, nodeStatusMutex);
 		return 0;
@@ -58,25 +58,21 @@ public class ServerMaster implements Master {
 
 	@Override
 	public void handleRatingEvent(RatingEvent event) {
-		// TODO Auto-generated method stub
 		this.getVector(event.getUrating(), event.getRet(), event.isMovie());
 	}
 
 	@Override
 	public void handleListMovieEvent(ListMovieEvent event) {
-		// TODO Auto-generated method stub
 		this.getMovieList(event.getRet());
 	}
 
 	@Override
 	public void handleRecMovieEvent(RecMovieEvent event) {
-		// TODO Auto-generated method stub
 		this.getRecMovie(event.getMovieVector(), event.getRet());
 	}
 
 	@Override
 	public void handleRecUserEvent(RecUserEvent event) {
-		// TODO Auto-generated method stub
 		this.getRecUser(event.getUserVector(), event.getRet());
 	}
 
@@ -89,7 +85,6 @@ public class ServerMaster implements Master {
 
 	public void getVector(Map<Movie, Integer> urating, Vector<Double> ret,
 			boolean isMovie) {
-		// TODO Auto-generated method stub
 		Object mutex = new Object();
 		List<VectorHandler> vhlist = new Vector<VectorHandler>();
 		synchronized (nodeStatusMutex) {
@@ -111,7 +106,6 @@ public class ServerMaster implements Master {
 				try {
 					wait(Properties.WAITE_TIME);
 				} catch (InterruptedException e) {
-					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
 				for (VectorHandler handler : vhlist) {
@@ -138,7 +132,6 @@ public class ServerMaster implements Master {
 	}
 
 	public void getMovieList(Vector<Movie> ret) {
-		// TODO Auto-generated method stub
 		Object mutex = new Object();
 		List<MovieListHandler> list = new Vector<MovieListHandler>();
 		synchronized (nodeStatusMutex) {
@@ -160,7 +153,6 @@ public class ServerMaster implements Master {
 				try {
 					wait(Properties.WAITE_TIME);
 				} catch (InterruptedException e) {
-					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
 				for (MovieListHandler handler : list) {
@@ -181,7 +173,6 @@ public class ServerMaster implements Master {
 	}
 
 	public void getRecMovie(Vector<Double> movieVector, Vector<Movie> ret) {
-		// TODO Auto-generated method stub
 		Object mutex = new Object();
 		List<RecMovieHandler> list = new Vector<RecMovieHandler>();
 		synchronized (nodeStatusMutex) {
@@ -203,7 +194,6 @@ public class ServerMaster implements Master {
 				try {
 					wait(Properties.WAITE_TIME);
 				} catch (InterruptedException e) {
-					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
 				for (RecMovieHandler handler : list) {
@@ -226,7 +216,6 @@ public class ServerMaster implements Master {
 	}
 
 	public void getRecUser(Vector<Double> userVector, Vector<User> ret) {
-		// TODO Auto-generated method stub
 		Object mutex = new Object();
 		List<RecUserHandler> list = new Vector<RecUserHandler>();
 		synchronized (nodeStatusMutex) {
@@ -248,7 +237,6 @@ public class ServerMaster implements Master {
 				try {
 					wait(Properties.WAITE_TIME);
 				} catch (InterruptedException e) {
-					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
 				for (RecUserHandler handler : list) {
@@ -279,7 +267,6 @@ class VectorHandler extends EventHandler {
 
 	public VectorHandler(Map<Movie, Integer> urating, boolean isMovie,
 			String slavehost, Object mutex) {
-		// TODO Auto-generated constructor stub
 		super(slavehost, mutex);
 		this.urating = urating;
 		this.ret = new Vector<Double>();
@@ -292,7 +279,6 @@ class VectorHandler extends EventHandler {
 
 	@Override
 	public void run() {
-		// TODO Auto-generated method stub
 		if (ssp.connect() != 0)
 			return;
 		ssp.getVector(urating, ret, isMovie);
@@ -308,7 +294,6 @@ class MovieListHandler extends EventHandler {
 	private Vector<Movie> ret;
 
 	public MovieListHandler(String slavehost, Object mutex) {
-		// TODO Auto-generated constructor stub
 		super(slavehost, mutex);
 		ret = new Vector<Movie>();
 	}
@@ -319,7 +304,6 @@ class MovieListHandler extends EventHandler {
 
 	@Override
 	public void run() {
-		// TODO Auto-generated method stub
 		if (ssp.connect() != 0)
 			return;
 		ssp.getMovieList(ret);
@@ -337,7 +321,6 @@ class RecMovieHandler extends EventHandler {
 
 	public RecMovieHandler(Vector<Double> movieVector, String slavehost,
 			Object mutex) {
-		// TODO Auto-generated constructor stub
 		super(slavehost, mutex);
 		this.movieVector = movieVector;
 		this.ret = new Vector<Movie>();
@@ -349,7 +332,6 @@ class RecMovieHandler extends EventHandler {
 
 	@Override
 	public void run() {
-		// TODO Auto-generated method stub
 		if (ssp.connect() != 0)
 			return;
 		ssp.getRecMovie(movieVector, ret);
@@ -367,7 +349,6 @@ class RecUserHandler extends EventHandler {
 
 	public RecUserHandler(Vector<Double> userVector, String slavehost,
 			Object mutex) {
-		// TODO Auto-generated constructor stub
 		super(slavehost, mutex);
 		this.userVector = userVector;
 		this.ret = new Vector<User>();
@@ -379,7 +360,6 @@ class RecUserHandler extends EventHandler {
 
 	@Override
 	public void run() {
-		// TODO Auto-generated method stub
 		if (ssp.connect() != 0)
 			return;
 		ssp.getRecUser(userVector, ret);
@@ -396,11 +376,9 @@ abstract class EventHandler implements Runnable {
 	SSPServer ssp;
 
 	public EventHandler() {
-		// TODO Auto-generated constructor stub
 	}
 
 	public EventHandler(String slavehost, Object mutex) {
-		// TODO Auto-generated constructor stub
 		this.mutex = mutex;
 		this.ssp = new SSPServer(slavehost);
 	}

@@ -71,10 +71,8 @@ public class SlaveCmdHandler implements Runnable {
 				}
 				oos.flush();
 			} catch (IOException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			} catch (ClassNotFoundException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 		}
@@ -86,17 +84,14 @@ public class SlaveCmdHandler implements Runnable {
 	private ServerSocket slaveSocket;
 
 	public SlaveCmdHandler(SlaveDataLoader dataLoader) {
-		// TODO Auto-generated constructor stub
 		this.dataLoader = dataLoader;
 	}
 
 	@Override
 	public void run() {
-		// TODO Auto-generated method stub
 		try {
 			slaveSocket = new ServerSocket(Properties.SLAVE_PORT, 4000);
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 			System.err.println("can't open slave port");
 			System.exit(-1);
@@ -107,10 +102,8 @@ public class SlaveCmdHandler implements Runnable {
 				Socket socket = slaveSocket.accept();
 				new Thread(new CmdProcesser(socket)).start();
 			} catch (IOException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 		}
 	}
-
 }

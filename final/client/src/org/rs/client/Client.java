@@ -20,7 +20,6 @@ public class Client implements UIEventListener {
 		private UIRatingEvent revent;
 
 		public UIEventHandler(UIEvent event) {
-			// TODO Auto-generated constructor stub
 			synchronized (Client.this) {
 				this.event = event;
 				this.revent = null;
@@ -28,7 +27,6 @@ public class Client implements UIEventListener {
 		}
 
 		public UIEventHandler(UIRatingEvent e) {
-			// TODO Auto-generated constructor stub
 			synchronized (Client.this) {
 				this.revent = e;
 				this.event = null;
@@ -37,7 +35,6 @@ public class Client implements UIEventListener {
 
 		@Override
 		public void run() {
-			// TODO Auto-generated method stub
 			synchronized (Client.this) {
 				if (event != null)
 					switch (event.getEventType()) {
@@ -133,7 +130,6 @@ public class Client implements UIEventListener {
 			this.listRecMovie(ui);
 			this.listRecUser(ui);
 		} catch (Exception e) {
-			// TODO Auto-generated catch block
 			errMess = e.getMessage();
 			ui.printErrMessage(errMess);
 		}
@@ -162,7 +158,6 @@ public class Client implements UIEventListener {
 					errMess = "wrong rating format!";
 				ui.printErrMessage(errMess);
 			} catch (Exception e) {
-				// TODO Auto-generated catch block
 				errMess = e.getMessage();
 				ui.printErrMessage(errMess);
 			}
@@ -194,7 +189,6 @@ public class Client implements UIEventListener {
 
 	@Override
 	public void handleUIRatingEvent(UIRatingEvent e) {
-		// TODO Auto-generated method stub
 		new Thread(new UIEventHandler(e)).start();
 	}
 
@@ -245,7 +239,6 @@ public class Client implements UIEventListener {
 	 *            [0] host [1] port
 	 */
 	public static void main(String[] args) {
-		// TODO Auto-generated method stub
 		Client client = new Client(new ClientHandler());
 		if (client.parseArgs(args)) {
 			GUI.addUIEventListener(client);

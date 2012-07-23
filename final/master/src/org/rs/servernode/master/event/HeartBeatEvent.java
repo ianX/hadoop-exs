@@ -12,7 +12,6 @@ public class HeartBeatEvent extends EventObject {
 
 	public HeartBeatEvent(HeartBeat source) {
 		super(source);
-		// TODO Auto-generated constructor stub
 		this.source = source;
 	}
 

@@ -17,7 +17,6 @@ public class RatingEvent extends EventObject {
 	public RatingEvent(DataGetter source ,Map<Movie, Integer> urating,
 			Vector<Double> ret , boolean type) {
 		super(source);
-		// TODO Auto-generated constructor stub
 		this.urating = urating;
 		this.ret = ret;
 		this.isMovie = type;

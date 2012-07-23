@@ -4,20 +4,18 @@ import java.util.Vector;
 
 import org.rs.servernode.master.event.HeartBeatEvent;
 import org.rs.servernode.master.event.HeartBeatEventListener;
+import org.rs.servernode.protocol.Properties;
 
 public class HeartBeat implements Runnable {
 	private Vector<HeartBeatEventListener> listeners = new Vector<HeartBeatEventListener>();
-	private int heartbeat = 1000;
 
 	@Override
 	public void run() {
-		// TODO Auto-generated method stub
 		while (true) {
 			try {
 				this.notifyHeartBeatEventListener();
-				Thread.sleep(heartbeat);
+				Thread.sleep(Properties.SLEEP_TIME);
 			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 		}

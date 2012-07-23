@@ -14,7 +14,6 @@ public class UIRatingEvent extends EventObject {
 
 	public UIRatingEvent(UI source, Movie movie, int rating) {
 		super(source);
-		// TODO Auto-generated constructor stub
 		this.ui = source;
 		this.movie = movie;
 		this.rating = rating;

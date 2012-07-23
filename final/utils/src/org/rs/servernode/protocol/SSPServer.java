@@ -23,11 +23,9 @@ public class SSPServer {
 		try {
 			socket = new Socket(host, Properties.SLAVE_PORT);
 		} catch (UnknownHostException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 			return -1;
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 			return -1;
 		}

@@ -16,7 +16,6 @@ public class RecUserEvent extends EventObject {
 	public RecUserEvent(DataGetter source, Vector<Double> userVector,
 			Vector<User> ret) {
 		super(source);
-		// TODO Auto-generated constructor stub
 		this.db = source;
 		this.userVector = userVector;
 		this.ret = ret;

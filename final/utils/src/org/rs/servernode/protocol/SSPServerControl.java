@@ -18,20 +18,17 @@ public class SSPServerControl implements Runnable {
 		private NodeStatus node;
 
 		public SlaveConnectHandler(Socket socket) {
-			// TODO Auto-generated constructor stub
 			this.socket = socket;
 		}
 
 		@Override
 		public void run() {
-			// TODO Auto-generated method stub
 			int nodeid = -1;
 			try {
 				oos = new ObjectOutputStream(socket.getOutputStream());
 				ois = new ObjectInputStream(socket.getInputStream());
 				nodeid = ois.readInt();
 			} catch (IOException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 				return;
 			}
@@ -44,8 +41,9 @@ public class SSPServerControl implements Runnable {
 					node = new NodeStatus(nodeid, oos);
 					nodeStatus.put(nodeid, node);
 				}
-				connected++;
 			}
+			
+			connected++;
 
 			while (true) {
 				try {
@@ -55,11 +53,11 @@ public class SSPServerControl implements Runnable {
 						this.socket.close();
 						return;
 					}
+					
 					synchronized (mutex) {
 						node.resetLastContact();
 					}
 				} catch (IOException e) {
-					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
 			}
@@ -89,10 +87,9 @@ public class SSPServerControl implements Runnable {
 		new Thread(this).start();
 		synchronized (this) {
 			try {
-				while (connected < registeredNode.size() * 0.6)
+				while (connected < registeredNode.size() * 0.7)
 					wait();
 			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 		}
@@ -100,11 +97,9 @@ public class SSPServerControl implements Runnable {
 
 	@Override
 	public void run() {
-		// TODO Auto-generated method stub
 		try {
 			masterSocket = new ServerSocket(Properties.MASTER_PORT, 4000);
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 
@@ -114,7 +109,6 @@ public class SSPServerControl implements Runnable {
 				socket = masterSocket.accept();
 				new Thread(new SlaveConnectHandler(socket)).start();
 			} catch (IOException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 			synchronized (this) {
@@ -133,7 +127,6 @@ public class SSPServerControl implements Runnable {
 					oos.flush();
 					node.fileAdded();
 				} catch (IOException e) {
-					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
 			}
@@ -149,7 +142,6 @@ public class SSPServerControl implements Runnable {
 					oos.writeObject(node.getFilesToRemove());
 					oos.flush();
 				} catch (IOException e) {
-					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
 			}
@@ -165,7 +157,6 @@ public class SSPServerControl implements Runnable {
 					oos.flush();
 					node.fileRemoved();
 				} catch (IOException e) {
-					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
 			}

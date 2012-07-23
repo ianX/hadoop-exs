@@ -19,7 +19,6 @@ public class NodeStatus {
 	private Set<String> filesToAdd = new HashSet<String>();
 
 	public NodeStatus(int id, ObjectOutputStream oos) {
-		// TODO Auto-generated constructor stub
 		nodeId = id;
 		this.oos = oos;
 	}
@@ -99,13 +98,11 @@ public class NodeStatus {
 
 	@Override
 	public int hashCode() {
-		// TODO Auto-generated method stub
 		return this.nodeId;
 	}
 
 	@Override
 	public boolean equals(Object obj) {
-		// TODO Auto-generated method stub
 		return this.nodeId == ((NodeStatus) obj).nodeId;
 	}
 }

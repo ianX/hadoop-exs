@@ -16,7 +16,6 @@ public class Movie implements Serializable, Comparable<Movie> {
 	}
 
 	public Movie(String name, int mid) {
-		// TODO Auto-generated constructor stub
 		this.name = name;
 		this.mid = mid;
 	}
@@ -63,26 +62,22 @@ public class Movie implements Serializable, Comparable<Movie> {
 
 	@Override
 	public boolean equals(Object obj) {
-		// TODO Auto-generated method stub
 		Movie m = (Movie) obj;
 		return m.getMid() == mid || name.equals(m.getName());
 	}
 
 	@Override
 	public int hashCode() {
-		// TODO Auto-generated method stub
 		return name.hashCode();
 	}
 
 	@Override
 	public String toString() {
-		// TODO Auto-generated method stub
 		return name;
 	}
 
 	@Override
 	public int compareTo(Movie o) {
-		// TODO Auto-generated method stub
 		return this.getMarking() - o.getMarking();
 	}
 }

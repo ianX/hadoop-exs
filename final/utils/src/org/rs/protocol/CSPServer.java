@@ -33,7 +33,6 @@ public class CSPServer {
 				System.out.println("data port: " + port);
 				break;
 			} catch (IOException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 				dataServer = null;
 			}
@@ -62,7 +61,6 @@ public class CSPServer {
 		try {
 			dataServer.close();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	}
@@ -85,7 +83,6 @@ public class CSPServer {
 			cmdWriter.newLine();
 			cmdWriter.flush();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 			return -1;
 		}
@@ -135,7 +132,6 @@ public class CSPServer {
 			cmdWriter.newLine();
 			cmdWriter.flush();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 			return -1;
 		}
@@ -166,10 +162,8 @@ public class CSPServer {
 			cmdWriter.flush();
 
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		} catch (ClassNotFoundException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 		return 0;

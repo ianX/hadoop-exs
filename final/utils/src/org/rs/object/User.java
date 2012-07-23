@@ -10,13 +10,11 @@ public class User implements Serializable, Comparable<User> {
 	private int marking = 0;
 
 	public User(String name, int uid) {
-		// TODO Auto-generated constructor stub
 		this.name = name;
 		this.uid = uid;
 	}
 
 	public User(int uid) {
-		// TODO Auto-generated constructor stub
 		this.uid = uid;
 	}
 
@@ -34,19 +32,16 @@ public class User implements Serializable, Comparable<User> {
 
 	@Override
 	public boolean equals(Object obj) {
-		// TODO Auto-generated method stub
 		return ((User) obj).getUid() == uid;
 	}
 
 	@Override
 	public int hashCode() {
-		// TODO Auto-generated method stub
 		return Integer.valueOf(uid).hashCode();
 	}
 
 	@Override
 	public String toString() {
-		// TODO Auto-generated method stub
 		if (name == null)
 			return "UID:" + Integer.toString(uid);
 		else
@@ -55,7 +50,6 @@ public class User implements Serializable, Comparable<User> {
 
 	@Override
 	public int compareTo(User o) {
-		// TODO Auto-generated method stub
 		return this.getMarking() - o.getMarking();
 	}
 }

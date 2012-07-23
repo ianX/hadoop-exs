@@ -16,7 +16,6 @@ public class ListMovieEvent extends EventObject {
 
 	public ListMovieEvent(DataGetter source, Vector<Movie> ret) {
 		super(source);
-		// TODO Auto-generated constructor stub
 		this.db = source;
 		this.ret = ret;
 	}

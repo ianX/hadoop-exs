@@ -18,7 +18,6 @@ public class UIEvent extends EventObject {
 
 	public UIEvent(UI source, boolean useParam , EventType eventType , String[] params) {
 		super(source);
-		// TODO Auto-generated constructor stub
 		ui = source;
 		this.eventType = eventType;
 		this.useParam = useParam;

@@ -85,10 +85,8 @@ public class MovieDetailDetector {
 
 			movie.setProperties(properties.toArray(new String[0]));
 		} catch (MalformedURLException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	}

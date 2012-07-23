@@ -33,13 +33,11 @@ public class ClientHandler implements ClientHandlerInterface {
 	private Map<Movie, Integer> userRating = new HashMap<Movie, Integer>();
 
 	public ClientHandler() {
-		// TODO Auto-generated constructor stub
 		cprotocol = new CSPClient();
 	}
 
 	@Override
 	public int connect(String host, int port) {
-		// TODO Auto-generated method stub
 		try {
 			messager = new Socket(host, port);
 			cmdWriter = new BufferedWriter(new OutputStreamWriter(
@@ -55,11 +53,9 @@ public class ClientHandler implements ClientHandlerInterface {
 					datatransporter.getOutputStream());
 			dataReader = new ObjectInputStream(datatransporter.getInputStream());
 		} catch (UnknownHostException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 			return -1;
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 			return -1;
 		}
@@ -68,7 +64,6 @@ public class ClientHandler implements ClientHandlerInterface {
 
 	@Override
 	public int close() {
-		// TODO Auto-generated method stub
 		try {
 			cprotocol.close(cmdReader, cmdWriter);
 			this.dataReader.close();
@@ -79,7 +74,6 @@ public class ClientHandler implements ClientHandlerInterface {
 			this.cmdWriter.close();
 			this.messager.close();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 		return 0;
@@ -87,13 +81,11 @@ public class ClientHandler implements ClientHandlerInterface {
 
 	@Override
 	public List<Movie> getMovieList() {
-		// TODO Auto-generated method stub
 		return getMovieList(new ArrayList<Movie>());
 	}
 
 	@Override
 	public List<Movie> getMovieList(List<Movie> list) {
-		// TODO Auto-generated method stub
 		list.clear();
 		cprotocol.getMovieList(list, cmdReader, cmdWriter, dataWriter,
 				dataReader);
@@ -102,13 +94,11 @@ public class ClientHandler implements ClientHandlerInterface {
 
 	@Override
 	public List<Movie> getRecMovie() {
-		// TODO Auto-generated method stub
 		return getMovieList(new ArrayList<Movie>());
 	}
 
 	@Override
 	public List<Movie> getRecMovie(List<Movie> list) {
-		// TODO Auto-generated method stub
 		list.clear();
 		cprotocol.getRecMovie(list, cmdReader, cmdWriter, dataWriter,
 				dataReader);
@@ -117,7 +107,6 @@ public class ClientHandler implements ClientHandlerInterface {
 
 	@Override
 	public List<User> getRecUser() {
-		// TODO Auto-generated method stub
 		return getRecUser(new ArrayList<User>());
 	}
 
@@ -126,13 +115,11 @@ public class ClientHandler implements ClientHandlerInterface {
 		list.clear();
 		cprotocol
 				.getRecUser(list, cmdReader, cmdWriter, dataWriter, dataReader);
-		// TODO Auto-generated method stub
 		return list;
 	}
 
 	@Override
 	public int addRating(Movie movie, int rating) {
-		// TODO Auto-generated method stub
 		if (userRating.containsKey(movie))
 			return -1;
 		userRating.put(movie, rating);

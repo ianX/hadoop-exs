@@ -19,17 +19,14 @@ public class SlaveNode implements Slave {
 		private boolean isMovie;
 
 		public AddFilesHandler(Set<String> files, boolean isMovie) {
-			// TODO Auto-generated constructor stub
 			this.files = files;
 			this.isMovie = isMovie;
 		}
 
 		@Override
 		public void run() {
-			// TODO Auto-generated method stub
 			dataLoader.addFiles(files, isMovie);
 		}
-
 	}
 
 	private class FilesToRemoveHandler implements Runnable {
@@ -37,13 +34,11 @@ public class SlaveNode implements Slave {
 		private Set<String> files;
 
 		public FilesToRemoveHandler(Set<String> files) {
-			// TODO Auto-generated constructor stub
 			this.files = files;
 		}
 
 		@Override
 		public void run() {
-			// TODO Auto-generated method stub
 			dataLoader.filesToRemove(files);
 		}
 
@@ -53,7 +48,6 @@ public class SlaveNode implements Slave {
 
 		@Override
 		public void run() {
-			// TODO Auto-generated method stub
 			dataLoader.removeMarkedFiles();
 		}
 	}
@@ -62,17 +56,14 @@ public class SlaveNode implements Slave {
 
 		@Override
 		public void run() {
-			// TODO Auto-generated method stub
 			while (true) {
 				try {
 					oos.writeInt(Properties.HEART_BEAT);
 					oos.flush();
 					Thread.sleep(Properties.SLEEP_TIME);
 				} catch (IOException e) {
-					// TODO Auto-generated catch block
 					e.printStackTrace();
 				} catch (InterruptedException e) {
-					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
 			}
@@ -90,7 +81,6 @@ public class SlaveNode implements Slave {
 	private SlaveCmdHandler cmdHandler;
 
 	public SlaveNode(String host, int id) {
-		// TODO Auto-generated constructor stub
 		this.host = host;
 		this.id = id;
 	}
@@ -103,11 +93,9 @@ public class SlaveNode implements Slave {
 			oos.writeInt(id);
 			oos.flush();
 		} catch (UnknownHostException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 			return -1;
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 			return -1;
 		}
@@ -143,10 +131,8 @@ public class SlaveNode implements Slave {
 				default:
 				}
 			} catch (IOException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			} catch (ClassNotFoundException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 		}
