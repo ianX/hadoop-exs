@@ -1,6 +1,7 @@
 package org.rs.servernode.protocol;
 
 public class Properties {
+	public final static int REC_NUM = 10;
 	public final static long SLEEP_TIME = 1000;
 	public final static long WAITE_TIME = 1000;
 	public final static int MASTER_PORT = 40030;

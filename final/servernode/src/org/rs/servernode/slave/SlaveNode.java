@@ -141,7 +141,7 @@ public class SlaveNode implements Slave {
 	public static void main(String[] args) {
 		if (args.length != 2)
 			System.out.println("usage : servernode masterHost nodeID");
-		SlaveNode slaveNode = new SlaveNode(args[0], Integer.parseInt(args[2]));
+		SlaveNode slaveNode = new SlaveNode(args[0], Integer.parseInt(args[1]));
 		if (slaveNode.initNode() == 0)
 			slaveNode.start();
 		System.out.println("connect error");
