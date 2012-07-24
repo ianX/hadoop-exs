@@ -3,11 +3,10 @@ package org.rs.object;
 import java.io.Serializable;
 
 public class User implements Serializable, Comparable<User> {
-
-	private static final long serialVersionUID = 8283243003197071899L;
+	private static final long serialVersionUID = -7010197333489417337L;
 	private String name = null;
 	private int uid;
-	private int marking = 0;
+	private double sim = 0;
 
 	public User(String name, int uid) {
 		this.name = name;
@@ -17,17 +16,22 @@ public class User implements Serializable, Comparable<User> {
 	public User(int uid) {
 		this.uid = uid;
 	}
-
-	public void setMarking(int marking) {
-		this.marking = marking;
-	}
-
-	public int getMarking() {
-		return marking;
+	
+	public User(int uid , double sim){
+		this.uid = uid;
+		this.sim = sim;
 	}
 
 	public int getUid() {
 		return uid;
+	}
+
+	public void setSim(double sim) {
+		this.sim = sim;
+	}
+
+	public double getSim() {
+		return sim;
 	}
 
 	@Override
@@ -50,6 +54,7 @@ public class User implements Serializable, Comparable<User> {
 
 	@Override
 	public int compareTo(User o) {
-		return this.getMarking() - o.getMarking();
+		double diff = this.getSim() - o.getSim();
+		return diff > 0 ? 1 : (diff < 0 ? -1 : 0);
 	}
 }

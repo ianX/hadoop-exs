@@ -142,6 +142,8 @@ public class ServerHandler implements ServerHandlerInterface {
 			return RetCode.receiveRatingFailed;
 		movieVector = db.getMovieVector(userRating, movieVector);
 		userVector = db.getUserVector(userRating, userVector);
+		System.out.println("ServerHandler: " + movieVector.size()
+				+ userVector.size());
 		return RetCode.good;
 	}
 

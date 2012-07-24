@@ -21,14 +21,12 @@ public class SlaveCmdHandler implements Runnable {
 		private Socket socket;
 
 		public CmdProcesser(Socket socket) {
-			// TODO Auto-generated constructor stub
 			this.socket = socket;
 		}
 
 		@SuppressWarnings("unchecked")
 		@Override
 		public void run() {
-			// TODO Auto-generated method stub
 			try {
 				ObjectOutputStream oos = new ObjectOutputStream(
 						socket.getOutputStream());
@@ -45,15 +43,17 @@ public class SlaveCmdHandler implements Runnable {
 					Map<Movie, Integer> rating4m = (HashMap<Movie, Integer>) ois
 							.readObject();
 					Vector<Double> mVector = new Vector<Double>();
-					dataLoader.getMovieVector(rating4m, mVector);
+					int mweight = dataLoader.getMovieVector(rating4m, mVector);
 					oos.writeObject(mVector);
+					oos.writeInt(mweight);
 					break;
 				case Properties.USER_VECTOR:
 					Map<Movie, Integer> rating4u = (HashMap<Movie, Integer>) ois
 							.readObject();
 					Vector<Double> uVector = new Vector<Double>();
-					dataLoader.getUserVector(rating4u, uVector);
+					int uweight = dataLoader.getUserVector(rating4u, uVector);
 					oos.writeObject(uVector);
+					oos.writeInt(uweight);
 					break;
 				case Properties.REC_MOVIE:
 					Vector<Double> mvector = (Vector<Double>) ois.readObject();

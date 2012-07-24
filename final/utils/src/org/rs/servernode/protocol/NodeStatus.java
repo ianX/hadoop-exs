@@ -14,9 +14,12 @@ public class NodeStatus {
 	private boolean alive = true;
 
 	private ObjectOutputStream oos;
-	private Set<String> files = new HashSet<String>();
-	private Set<String> filesToRemove = new HashSet<String>();
-	private Set<String> filesToAdd = new HashSet<String>();
+	private Set<String> mfiles = new HashSet<String>();
+	private Set<String> mfilesToRemove = new HashSet<String>();
+	private Set<String> mfilesToAdd = new HashSet<String>();
+	private Set<String> ufiles = new HashSet<String>();
+	private Set<String> ufilesToRemove = new HashSet<String>();
+	private Set<String> ufilesToAdd = new HashSet<String>();
 
 	public NodeStatus(int id, ObjectOutputStream oos) {
 		nodeId = id;
@@ -39,33 +42,56 @@ public class NodeStatus {
 		return host;
 	}
 
-	public Set<String> getFiles() {
-		return files;
+	public Set<String> getUfiles() {
+		return ufiles;
 	}
 
-	public void addFile(String file) {
-		this.filesToAdd.add(file);
+	public Set<String> getMFiles() {
+		return mfiles;
 	}
 
-	public Set<String> getFilesToRemove() {
-		return filesToRemove;
+	public void addUFile(String file) {
+		this.ufilesToAdd.add(file);
 	}
 
-	public void addFileToRemove(String fileToRemove) {
-		this.filesToRemove.add(fileToRemove);
+	public void addMFile(String file) {
+		this.mfilesToAdd.add(file);
 	}
 
-	public Set<String> getFilesToAdd() {
-		return filesToAdd;
+	public Set<String> getUFilesToRemove() {
+		return ufilesToRemove;
+	}
+
+	public Set<String> getMFilesToRemove() {
+		return mfilesToRemove;
+	}
+
+	public void addUFileToRemove(String fileToRemove) {
+		this.ufilesToRemove.add(fileToRemove);
+	}
+
+	public void addMFileToRemove(String fileToRemove) {
+		this.mfilesToRemove.add(fileToRemove);
+	}
+
+	public Set<String> getUFilesToAdd() {
+		return ufilesToAdd;
+	}
+
+	public Set<String> getMFilesToAdd() {
+		return mfilesToAdd;
 	}
 
 	public void fileAdded() {
-		files.addAll(filesToAdd);
-		filesToAdd.clear();
+		mfiles.addAll(mfilesToAdd);
+		mfilesToAdd.clear();
+		ufiles.addAll(ufilesToAdd);
+		ufilesToAdd.clear();
 	}
 
 	public void fileRemoved() {
-		filesToRemove.clear();
+		mfilesToRemove.clear();
+		ufilesToRemove.clear();
 	}
 
 	public void setOos(ObjectOutputStream oos) {

@@ -73,12 +73,13 @@ public class CSPServer {
 			cmdWriter.newLine();
 			cmdWriter.flush();
 
-			// System.out.println("starting");
-			dataWriter.reset();
+			System.out.println("starting");
+			// dataWriter.reset();
+			System.out.println(list.size());
 			dataWriter.writeObject(list);
 			dataWriter.flush();
 
-			// System.out.println("ending");
+			System.out.println("ending");
 			cmdWriter.write(Commands.LIST_MOVIE_END);
 			cmdWriter.newLine();
 			cmdWriter.flush();

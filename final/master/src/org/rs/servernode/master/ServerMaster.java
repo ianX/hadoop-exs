@@ -1,5 +1,8 @@
 package org.rs.servernode.master;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -7,6 +10,10 @@ import java.util.Map;
 import java.util.Set;
 import java.util.Vector;
 
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 import org.rs.object.Movie;
 import org.rs.object.User;
 import org.rs.servernode.master.event.HeartBeatEvent;
@@ -23,6 +30,41 @@ import org.rs.servernode.protocol.SSPServerControl;
 
 public class ServerMaster implements Master {
 
+	private class Terminal implements Runnable {
+		private Object mutex;
+
+		public Terminal(Object mutex) {
+			this.mutex = mutex;
+		}
+
+		@Override
+		public void run() {
+			BufferedReader br = new BufferedReader(new InputStreamReader(
+					System.in));
+			try {
+				String cmd;
+				System.out.print("cmd: ");
+				while ((cmd = br.readLine()) != null) {
+					if ((cmd.startsWith("file"))) {
+						String filepath = cmd
+								.substring(cmd.indexOf("file") + 4).trim();
+						dispatchFiles(filepath);
+						synchronized (mutex) {
+							ServerMaster.this.initfinished = true;
+							mutex.notify();
+						}
+					} else if (cmd.equals("exit")) {
+						// TODO:close
+						System.exit(0);
+					}
+					System.out.print("cmd: ");
+				}
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+	}
+
 	private HeartBeat heartbeat;
 
 	private DataCombiner combiner = new MasterDataCombiner();
@@ -35,6 +77,93 @@ public class ServerMaster implements Master {
 
 	private Object nodeStatusMutex = new Object();
 
+	private Object heartBeatMutex = new Object();
+
+	private void dispatchFiles(String path) {
+		try {
+			FileSystem fs = FileSystem.get(new Configuration());
+			FileStatus[] movies = fs.globStatus(new Path(path
+					+ Properties.MOVIE_FILE_PREFIX));
+			FileStatus[] users = fs.globStatus(new Path(path
+					+ Properties.USER_FILE_PREFIX));
+			int nodeNum = control.getConnected();
+			if (nodeNum <= 0)
+				throw new IOException("no node connceted");
+			int mean = movies.length / nodeNum;
+			int left = movies.length % nodeNum;
+			synchronized (nodeStatusMutex) {
+				int index = 0;
+				for (NodeStatus node : nodeStatus.values()) {
+					if (node.isAlive()) {
+						for (int i = 0; i < mean; i++) {
+							if (index >= movies.length)
+								break;
+							node.addMFile(movies[index++].getPath().toString());
+						}
+						if (left-- > 0 && index < movies.length)
+							node.addMFile(movies[index++].getPath().toString());
+					}
+				}
+			}
+			mean = users.length / nodeNum;
+			left = users.length % nodeNum;
+			synchronized (nodeStatusMutex) {
+				int index = 0;
+				for (NodeStatus node : nodeStatus.values()) {
+					if (node.isAlive()) {
+						for (int i = 0; i < mean; i++) {
+							if (index >= users.length)
+								break;
+							node.addUFile(users[index++].getPath().toString());
+						}
+						if (left-- > 0 && index < users.length)
+							node.addUFile(users[index++].getPath().toString());
+					}
+				}
+			}
+			control.addFiles();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			System.exit(-1);
+		}
+	}
+
+	private boolean initfinished = false;
+
+	@Override
+	public void run() {
+		// TODO Auto-generated method stub
+		InitAssemblage();
+
+		Object mutex = new Object();
+		new Thread(new Terminal(mutex)).start();
+
+		synchronized (mutex) {
+			while (!initfinished)
+				try {
+					mutex.wait();
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+		}
+
+		startHeartBeat();
+
+		synchronized (heartBeatMutex) {
+			while (true) {
+				try {
+					heartBeatMutex.wait();
+					control.refreshStatus();
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
+		}
+	}
+
 	@Override
 	public void startHeartBeat() {
 		heartbeat = new HeartBeat();
@@ -45,15 +174,15 @@ public class ServerMaster implements Master {
 	@Override
 	public int InitAssemblage() {
 		registeredNode.add(0);
-		// TODO Auto-generated method stub
 		control.init(nodeStatus, registeredNode, nodeStatusMutex);
 		return 0;
 	}
 
 	@Override
 	public void handleHeartBeatEvent(HeartBeatEvent e) {
-		// TODO Auto-generated method stub
-
+		synchronized (heartBeatMutex) {
+			heartBeatMutex.notify();
+		}
 	}
 
 	@Override
@@ -68,23 +197,21 @@ public class ServerMaster implements Master {
 
 	@Override
 	public void handleRecMovieEvent(RecMovieEvent event) {
+		System.out.println("rec movie");
 		this.getRecMovie(event.getMovieVector(), event.getRet());
 	}
 
 	@Override
 	public void handleRecUserEvent(RecUserEvent event) {
+		System.out.println("rec user");
 		this.getRecUser(event.getUserVector(), event.getRet());
-	}
-
-	@Override
-	public void run() {
-		// TODO Auto-generated method stub
-		this.InitAssemblage();
-
 	}
 
 	public void getVector(Map<Movie, Integer> urating, Vector<Double> ret,
 			boolean isMovie) {
+		for (Movie m : urating.keySet()) {
+			System.out.println(m.toString() + " " + urating.get(m));
+		}
 		Object mutex = new Object();
 		List<VectorHandler> vhlist = new Vector<VectorHandler>();
 		synchronized (nodeStatusMutex) {
@@ -104,7 +231,7 @@ public class ServerMaster implements Master {
 			do {
 				allfinish = true;
 				try {
-					wait(Properties.WAITE_TIME);
+					mutex.wait(Properties.WAITE_TIME);
 				} catch (InterruptedException e) {
 					e.printStackTrace();
 				}
@@ -119,19 +246,24 @@ public class ServerMaster implements Master {
 		}
 
 		List<List<Double>> rets = new Vector<List<Double>>();
+		List<Integer> weights = new Vector<Integer>();
 		for (VectorHandler handler : vhlist) {
 			if (handler.isFinished()) {
+				System.out.println(handler.getRet().size());
 				rets.add(handler.getRet());
+				weights.add(handler.getWeight());
 			}
 		}
 		if (isMovie) {
-			combiner.combineMovieVector(rets, null, ret);
+			combiner.combineMovieVector(rets, weights, ret);
 		} else {
-			combiner.combineUserVector(rets, null, ret);
+			combiner.combineUserVector(rets, weights, ret);
 		}
+		System.out.println("combine end : " + ret.size());
 	}
 
 	public void getMovieList(Vector<Movie> ret) {
+		System.out.println("master :begin get movie list");
 		Object mutex = new Object();
 		List<MovieListHandler> list = new Vector<MovieListHandler>();
 		synchronized (nodeStatusMutex) {
@@ -151,7 +283,7 @@ public class ServerMaster implements Master {
 			do {
 				allfinish = true;
 				try {
-					wait(Properties.WAITE_TIME);
+					mutex.wait(Properties.WAITE_TIME);
 				} catch (InterruptedException e) {
 					e.printStackTrace();
 				}
@@ -170,6 +302,7 @@ public class ServerMaster implements Master {
 				ret.addAll(handler.getRet());
 			}
 		}
+		System.out.println("master: end get movie list");
 	}
 
 	public void getRecMovie(Vector<Double> movieVector, Vector<Movie> ret) {
@@ -192,7 +325,7 @@ public class ServerMaster implements Master {
 			do {
 				allfinish = true;
 				try {
-					wait(Properties.WAITE_TIME);
+					mutex.wait(Properties.WAITE_TIME);
 				} catch (InterruptedException e) {
 					e.printStackTrace();
 				}
@@ -235,7 +368,7 @@ public class ServerMaster implements Master {
 			do {
 				allfinish = true;
 				try {
-					wait(Properties.WAITE_TIME);
+					mutex.wait(Properties.WAITE_TIME);
 				} catch (InterruptedException e) {
 					e.printStackTrace();
 				}
@@ -263,6 +396,7 @@ class VectorHandler extends EventHandler {
 
 	private Map<Movie, Integer> urating;
 	private Vector<Double> ret;
+	private int weight;
 	private boolean isMovie;
 
 	public VectorHandler(Map<Movie, Integer> urating, boolean isMovie,
@@ -277,14 +411,16 @@ class VectorHandler extends EventHandler {
 		return ret;
 	}
 
+	public int getWeight() {
+		return weight;
+	}
+
 	@Override
 	public void run() {
 		if (ssp.connect() != 0)
 			return;
-		ssp.getVector(urating, ret, isMovie);
-		synchronized (this.getMutex()) {
-			notify();
-		}
+		this.weight = ssp.getVector(urating, ret, isMovie);
+		this.setFinished();
 	}
 
 }
@@ -307,9 +443,7 @@ class MovieListHandler extends EventHandler {
 		if (ssp.connect() != 0)
 			return;
 		ssp.getMovieList(ret);
-		synchronized (this.getMutex()) {
-			notify();
-		}
+		this.setFinished();
 	}
 
 }
@@ -335,9 +469,7 @@ class RecMovieHandler extends EventHandler {
 		if (ssp.connect() != 0)
 			return;
 		ssp.getRecMovie(movieVector, ret);
-		synchronized (this.getMutex()) {
-			notify();
-		}
+		this.setFinished();
 	}
 
 }
@@ -363,9 +495,7 @@ class RecUserHandler extends EventHandler {
 		if (ssp.connect() != 0)
 			return;
 		ssp.getRecUser(userVector, ret);
-		synchronized (this.getMutex()) {
-			notify();
-		}
+		this.setFinished();
 	}
 
 }
@@ -391,7 +521,10 @@ abstract class EventHandler implements Runnable {
 		return finished;
 	}
 
-	public void setFinished(boolean finished) {
-		this.finished = finished;
+	public void setFinished() {
+		synchronized (mutex) {
+			this.finished = true;
+			mutex.notify();
+		}
 	}
 }

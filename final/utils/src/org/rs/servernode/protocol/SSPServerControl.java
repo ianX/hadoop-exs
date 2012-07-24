@@ -21,6 +21,19 @@ public class SSPServerControl implements Runnable {
 			this.socket = socket;
 		}
 
+		private void nodeDead() {
+			synchronized (mutex) {
+				node.setAlive(false);
+				try {
+					node.getOos().close();
+					this.ois.close();
+					this.socket.close();
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
+		}
+
 		@Override
 		public void run() {
 			int nodeid = -1;
@@ -33,6 +46,9 @@ public class SSPServerControl implements Runnable {
 				return;
 			}
 
+			if (nodeid == -1)
+				return;
+
 			synchronized (mutex) {
 				if (nodeStatus.containsKey(nodeid)) {
 					node = nodeStatus.get(nodeid);
@@ -41,28 +57,35 @@ public class SSPServerControl implements Runnable {
 					node = new NodeStatus(nodeid, oos);
 					nodeStatus.put(nodeid, node);
 				}
+				connected++;
 			}
-			
-			connected++;
+
+			synchronized (SSPServerControl.this) {
+				SSPServerControl.this.notify();
+			}
 
 			while (true) {
 				try {
 					int hb = ois.readInt();
 					if (hb != Properties.HEART_BEAT) {
-						this.ois.close();
-						this.socket.close();
+						this.nodeDead();
 						return;
 					}
-					
+
 					synchronized (mutex) {
 						node.resetLastContact();
+						if (!node.isAlive()) {
+							this.nodeDead();
+							return;
+						}
 					}
 				} catch (IOException e) {
 					e.printStackTrace();
+					this.nodeDead();
+					return;
 				}
 			}
 		}
-
 	}
 
 	private ServerSocket masterSocket;
@@ -72,7 +95,14 @@ public class SSPServerControl implements Runnable {
 	private Object mutex;
 
 	public void refreshStatus() {
-
+		synchronized (mutex) {
+			for (NodeStatus node : nodeStatus.values()) {
+				if (node.getLastContact() >= Properties.NODE_DEAD) {
+					node.setAlive(false);
+					connected--;
+				}
+			}
+		}
 	}
 
 	public int getConnected() {
@@ -88,11 +118,12 @@ public class SSPServerControl implements Runnable {
 		synchronized (this) {
 			try {
 				while (connected < registeredNode.size() * 0.7)
-					wait();
+					this.wait();
 			} catch (InterruptedException e) {
 				e.printStackTrace();
 			}
 		}
+		System.out.println("control init finish");
 	}
 
 	@Override
@@ -101,6 +132,7 @@ public class SSPServerControl implements Runnable {
 			masterSocket = new ServerSocket(Properties.MASTER_PORT, 4000);
 		} catch (IOException e) {
 			e.printStackTrace();
+			return;
 		}
 
 		while (true) {
@@ -112,7 +144,7 @@ public class SSPServerControl implements Runnable {
 				e.printStackTrace();
 			}
 			synchronized (this) {
-				notify();
+				this.notify();
 			}
 		}
 	}
@@ -121,9 +153,16 @@ public class SSPServerControl implements Runnable {
 		synchronized (mutex) {
 			for (NodeStatus node : nodeStatus.values()) {
 				try {
+					System.out.println(node.getMFilesToAdd().size());
+					System.out.println(node.getUFilesToAdd().size());
 					ObjectOutputStream oos = node.getOos();
+
 					oos.writeInt(Properties.ADD_FILES);
-					oos.writeObject(node.getFilesToAdd());
+					oos.writeObject(node.getMFilesToAdd());
+					oos.writeBoolean(true);
+					oos.writeInt(Properties.ADD_FILES);
+					oos.writeObject(node.getUFilesToAdd());
+					oos.writeBoolean(false);
 					oos.flush();
 					node.fileAdded();
 				} catch (IOException e) {
@@ -139,7 +178,11 @@ public class SSPServerControl implements Runnable {
 				try {
 					ObjectOutputStream oos = node.getOos();
 					oos.writeInt(Properties.FILES_TO_REOMVE);
-					oos.writeObject(node.getFilesToRemove());
+					oos.writeObject(node.getMFilesToRemove());
+					oos.writeBoolean(true);
+					oos.writeInt(Properties.FILES_TO_REOMVE);
+					oos.writeObject(node.getUFilesToRemove());
+					oos.writeBoolean(false);
 					oos.flush();
 				} catch (IOException e) {
 					e.printStackTrace();
@@ -162,5 +205,4 @@ public class SSPServerControl implements Runnable {
 			}
 		}
 	}
-
 }

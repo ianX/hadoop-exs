@@ -30,7 +30,9 @@ public class MasterDataGetter extends DataGetter {
 
 	@Override
 	public Vector<Movie> getMovieList(Vector<Movie> ret) {
+		System.out.println("begin get movie list");
 		this.notifyListMovieEventListenser(ret);
+		System.out.println("end get movie list");
 		return ret;
 	}
 

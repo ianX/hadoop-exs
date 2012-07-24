@@ -3,13 +3,17 @@ package org.rs.object;
 import java.io.Serializable;
 
 public class Movie implements Serializable, Comparable<Movie> {
-	private static final long serialVersionUID = -4543712156703334945L;
-	private String name;
+	private static final long serialVersionUID = 6054453888751836297L;
+	private String name = null;
 	private int mid = -1;
-	private int marking = 0;
+	private double rating = 0;
 	private String imageURL = null;
 	private String movieURL = null;
 	private String[] properties = null;
+
+	public Movie(int id) {
+		this.mid = id;
+	}
 
 	public Movie(String name) {
 		this.name = name;
@@ -20,12 +24,12 @@ public class Movie implements Serializable, Comparable<Movie> {
 		this.mid = mid;
 	}
 
-	public void setMarking(int marking) {
-		this.marking = marking;
+	public void setRating(double rating) {
+		this.rating = rating;
 	}
 
-	public int getMarking() {
-		return marking;
+	public double getRating() {
+		return rating;
 	}
 
 	public void setMovieURL(String movieURL) {
@@ -73,11 +77,15 @@ public class Movie implements Serializable, Comparable<Movie> {
 
 	@Override
 	public String toString() {
-		return name;
+		if (name != null)
+			return name;
+		else
+			return Integer.toString(mid);
 	}
 
 	@Override
 	public int compareTo(Movie o) {
-		return this.getMarking() - o.getMarking();
+		double diff = this.getRating() - o.getRating();
+		return diff > 0 ? 1 : (diff < 0 ? -1 : 0);
 	}
 }

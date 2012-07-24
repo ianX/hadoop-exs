@@ -1,14 +1,17 @@
 package org.rs.client;
 
-import java.util.HashSet;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
 import java.util.Vector;
 
+import org.rs.client.event.EventType;
 import org.rs.client.event.UIEvent;
 import org.rs.client.event.UIEventListener;
 import org.rs.client.event.UIRatingEvent;
-import org.rs.client.ui.*;
+import org.rs.client.ui.GUI;
+import org.rs.client.ui.UI;
 import org.rs.object.Movie;
 import org.rs.object.User;
 
@@ -20,17 +23,16 @@ public class Client implements UIEventListener {
 		private UIRatingEvent revent;
 
 		public UIEventHandler(UIEvent event) {
-			synchronized (Client.this) {
-				this.event = event;
-				this.revent = null;
+			this.event = event;
+			if (event.getEventType().equals(EventType.COLSE)) {
+				close(event.getSource());
 			}
+			this.revent = null;
 		}
 
 		public UIEventHandler(UIRatingEvent e) {
-			synchronized (Client.this) {
-				this.revent = e;
-				this.event = null;
-			}
+			this.revent = e;
+			this.event = null;
 		}
 
 		@Override
@@ -40,9 +42,6 @@ public class Client implements UIEventListener {
 					switch (event.getEventType()) {
 					case CONNECT:
 						connect(event);
-						break;
-					case COLSE:
-						close(event.getSource());
 						break;
 					case RATING:
 						addRating(event);
@@ -65,7 +64,7 @@ public class Client implements UIEventListener {
 		}
 	}
 
-	private Set<Movie> movieList = new HashSet<Movie>();
+	private Map<Integer, Movie> movieList = new HashMap<Integer, Movie>();
 	private List<Movie> recMovie = new Vector<Movie>();
 	private List<User> recUser = new Vector<User>();
 
@@ -116,7 +115,15 @@ public class Client implements UIEventListener {
 		if (!this.connected)
 			this.notConnected(ui);
 		List<Movie> list = handler.getMovieList();
-		movieList.addAll(list);
+		Iterator<Movie> iterator = list.iterator();
+		while (iterator.hasNext()) {
+			Movie m = iterator.next();
+			if (m == null || m.getName() == null) {
+				iterator.remove();
+			} else {
+				movieList.put(m.getMid(), m);
+			}
+		}
 		ui.printMovieList(list);
 	}
 
@@ -124,12 +131,13 @@ public class Client implements UIEventListener {
 		UI ui = event.getUi();
 		try {
 			Movie movie = event.getMovie();
-			if (!this.movieList.contains(movie))
+			if (!this.movieList.values().contains(movie))
 				throw new Exception("movie not exist!");
 			handler.addRating(movie, event.getRating());
 			this.listRecMovie(ui);
 			this.listRecUser(ui);
 		} catch (Exception e) {
+			e.printStackTrace();
 			errMess = e.getMessage();
 			ui.printErrMessage(errMess);
 		}
@@ -142,22 +150,26 @@ public class Client implements UIEventListener {
 		String[] params = event.getParams();
 		if (params != null) {
 			try {
-				String movieName = params[0];
+				String mid = params[0];
 				int rating = Integer.parseInt(params[1]);
 				if (rating < 0 || rating > 5)
 					throw new NumberFormatException("port not in [0,5]!");
-				Movie movie = new Movie(movieName);
-				if (!this.movieList.contains(movie))
+				int id = Integer.parseInt(mid);
+				if (!this.movieList.containsKey(id))
 					throw new Exception("movie not exist!");
-				handler.addRating(movie, rating);
+				// System.out.println("cli:" + movieList.get(id).getName() + " "
+				// + movieList.get(id).getMid());
+				handler.addRating(movieList.get(id), rating);
 				this.listRecMovie(ui);
 				this.listRecUser(ui);
 			} catch (NumberFormatException e) {
+				e.printStackTrace();
 				errMess = e.getMessage();
 				if (errMess.length() == 0)
 					errMess = "wrong rating format!";
 				ui.printErrMessage(errMess);
 			} catch (Exception e) {
+				e.printStackTrace();
 				errMess = e.getMessage();
 				ui.printErrMessage(errMess);
 			}
@@ -218,11 +230,13 @@ public class Client implements UIEventListener {
 					throw new NumberFormatException("port not in [1025,65535]!");
 			}
 		} catch (NumberFormatException e) {
+			e.printStackTrace();
 			errMess = e.getMessage();
 			if (errMess.length() == 0)
 				errMess = "wrong number format!";
 			return false;
 		} catch (Exception e) {
+			e.printStackTrace();
 			errMess = e.getMessage();
 			return false;
 		}

@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.List;
+import java.util.Vector;
 
 import org.rs.object.Movie;
 import org.rs.object.User;
@@ -72,7 +73,8 @@ public class CSPClient {
 				return -1;
 			}
 
-			list.addAll((List<Movie>) dataReader.readObject());
+			System.out.println(list.size());
+			list.addAll((Vector<Movie>) dataReader.readObject());
 
 			if (!(mess = cmdReader.readLine()).equals(Commands.LIST_MOVIE_END)) {
 				System.out.println("LIST_MOVIE_END error:" + mess);

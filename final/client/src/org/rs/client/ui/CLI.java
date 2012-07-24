@@ -3,7 +3,9 @@ package org.rs.client.ui;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import javafx.stage.Stage;
 
@@ -12,6 +14,8 @@ import org.rs.object.Movie;
 import org.rs.object.User;
 
 public class CLI extends UI implements Runnable {
+
+	private Map<String, Integer> movieMap = new HashMap<String, Integer>();
 
 	@Override
 	public void run() {
@@ -59,8 +63,13 @@ public class CLI extends UI implements Runnable {
 				return;
 			}
 			param = new String[2];
-			param[0] = cmd.substring(i + 1, j);
+			if (movieMap.containsKey(cmd.substring(i + 1, j)))
+				param[0] = movieMap.get(cmd.substring(i + 1, j)).toString();
+			else
+				param[0] = "-1";
 			param[1] = cmd.substring(j + 1);
+			// System.out.println(cmd.substring(i + 1, j) + " " + param[0] + " "
+			// + param[1]);
 			notifyListener(this, true, EventType.RATING, param);
 		} else if (cmd.length() == 0) {
 			return;
@@ -72,9 +81,10 @@ public class CLI extends UI implements Runnable {
 	@Override
 	public void printMovieList(List<Movie> list) {
 		// TODO Auto-generated method stub
-		System.out.println("movie list:");
+		System.out.println("movie list:" + list.size());
 		for (Movie movie : list) {
-			System.out.println(movie.toString());
+			movieMap.put(movie.getName(), movie.getMid());
+			System.out.println(movie.getName());
 		}
 	}
 
