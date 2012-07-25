@@ -1,10 +1,8 @@
 package org.rs.client.ui.www;
 
 import java.io.BufferedReader;
-import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Vector;
 
@@ -49,18 +47,19 @@ public class MovieDetailDetector {
 
 			movie.setImageURL(moviePic);
 			movie.setMovieURL(movieUrl);
-		} catch (MalformedURLException e) {
+		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			movie.setMovieURL("");
+			movie.setImageURL("");
 		}
+		movie.inited();
 	}
 
 	public static void getProperties(Movie movie) {
 		try {
 			String movieUrl = movie.getMovieURL();
+			System.out.println(movieUrl);
 			HttpURLConnection con = (HttpURLConnection) new URL(movieUrl)
 					.openConnection();
 			con.setInstanceFollowRedirects(false);
@@ -84,10 +83,9 @@ public class MovieDetailDetector {
 			br.close();
 
 			movie.setProperties(properties.toArray(new String[0]));
-		} catch (MalformedURLException e) {
+		} catch (Exception e) {
 			e.printStackTrace();
-		} catch (IOException e) {
-			e.printStackTrace();
+			movie.setProperties(new String[0]);
 		}
 	}
 }

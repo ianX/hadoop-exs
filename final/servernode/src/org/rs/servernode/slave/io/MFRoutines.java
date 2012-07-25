@@ -158,13 +158,21 @@ public class MFRoutines {
 			ret.set(i, ret.get(i).doubleValue() / num);
 	}
 
+	// return length of vector
+	public static double lenList(List<Double> a) {
+		double ret = 0;
+		for (int i = 0; i < a.size(); i++)
+			ret += a.get(i) * a.get(i);
+		return Math.sqrt(ret);
+	}
+
 	// return movieVector * list
 	public static double calRating(List<Double> movieVector, List<Double> list) {
 		double res = 0;
-		System.out.println(movieVector.size() + " " + list.size());
+		// System.out.println(movieVector.size() + " " + list.size());
 		for (int i = 0; i < movieVector.size(); i++)
 			res += movieVector.get(i) * list.get(i);
-		return res;
+		return res / (lenList(movieVector) * lenList(list));
 	}
 
 	public static int getMinRatingId(List<Movie> ret) {

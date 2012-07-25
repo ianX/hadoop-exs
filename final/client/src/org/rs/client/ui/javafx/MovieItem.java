@@ -1,6 +1,5 @@
 package org.rs.client.ui.javafx;
 
-import javafx.application.Platform;
 import javafx.event.EventHandler;
 import javafx.geometry.Bounds;
 import javafx.scene.Group;
@@ -25,10 +24,20 @@ public class MovieItem extends Group {
 	private final Text details = new Text();
 	private final Text title = new Text();
 
-	private final Rectangle back = new Rectangle(200, 260, Color.LIGHTGRAY);
+	private final Rectangle back = new Rectangle(170, 220, Color.LIGHTGRAY);
 
-	private static final double mheight = 220;
-	private double wh = 0.4;
+	private static final double height = 178;
+	private double wh = 0.71;
+
+	public void getDetails() {
+		if (!movie.isInited())
+			MovieDetailDetector.getProperties(movie);
+		String s = "";
+		for (String p : movie.getProperties()) {
+			s += p + "\n";
+		}
+		details.setText(s);
+	}
 
 	public MovieItem(final Movie movie, GUI gui) {
 		super();
@@ -37,42 +46,38 @@ public class MovieItem extends Group {
 		this.movie = movie;
 
 		System.out.println("new item");
-		MovieDetailDetector.getMovieDetails(movie);
-		Platform.runLater(new Runnable() {
-			@Override
-			public void run() {
-				MovieDetailDetector.getProperties(movie);
-				String s = "";
-				for (String p : movie.getProperties()) {
-					s += p + "\n";
-				}
-				details.setText(s);
-			}
-		});
 
-		moviePic.setImage(new Image(movie.getImageURL()));
+		if (!movie.isInited())
+			MovieDetailDetector.getMovieDetails(movie);
 
-		// moviePic = new ImageView(
-		// "file:///home/ian/Pictures/zaregoto_series/643376.jpg");
+		String imageURL = movie.getImageURL();
+
+		if (imageURL.length() == 0) {
+			moviePic.setImage(new Image(MovieItem.class
+					.getResourceAsStream("resources/default_movie_pic.jpg")));
+		} else {
+			moviePic.setImage(new Image(imageURL, true));
+		}
+
 		Bounds bd = moviePic.getLayoutBounds();
-		wh = bd.getWidth() / bd.getHeight();
+		// wh = bd.getWidth() / bd.getHeight();
 
-		moviePic.setFitHeight(mheight);
-		moviePic.setFitWidth(mheight * wh);
-		moviePic.setCache(true);
+		moviePic.setFitHeight(height);
+		moviePic.setFitWidth(height * wh);
+		// moviePic.setCache(true);
 
 		String name = movie.getName();
 		title.setText(name);
 		title.setFont(new Font(20));
-		title.relocate(190, 0);
-		details.relocate(190, title.layoutYProperty().get() + 10);
+		title.relocate(160, 0);
+		details.relocate(160, title.layoutYProperty().get() + 10);
 		title.setVisible(false);
 		details.setVisible(false);
 		title.setWrappingWidth(200);
 		details.setWrappingWidth(200);
 
 		ratingPane = new RatingPane(this);
-		ratingPane.relocate(0, 245);
+		ratingPane.relocate(0, 192);
 		ratingPane.setVisible(false);
 
 		back.setOpacity(0.0);
@@ -80,7 +85,7 @@ public class MovieItem extends Group {
 		this.getChildren().addAll(back, moviePic, title, details, ratingPane);
 		this.setStyle("-fx-background-color: black;");
 
-		this.setOnMouseEntered(new EventHandler<MouseEvent>() {
+		moviePic.setOnMouseEntered(new EventHandler<MouseEvent>() {
 
 			@Override
 			public void handle(MouseEvent event) {
@@ -108,6 +113,7 @@ public class MovieItem extends Group {
 				title.setVisible(true);
 				details.setVisible(true);
 				ratingPane.setVisible(true);
+				getDetails();
 			}
 		});
 	}

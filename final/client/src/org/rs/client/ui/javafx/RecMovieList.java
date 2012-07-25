@@ -16,16 +16,14 @@ public class RecMovieList extends Parent {
 		@Override
 		public void run() {
 			System.out.println("RecMovieListUpdater running");
+			hbox.getChildren().clear();
 			List<Movie> recMovie = gui.getRecMovie();
-			int oldLen = hbox.getChildren().size();
+			System.out.println("RecMovie " + recMovie.size());
 			for (Movie m : recMovie) {
-				System.out.println(m.toString());
+				System.out.println(m.getName() + "to " + m.toString()
+						+ " id : " + m.getMid());
 				hbox.getChildren().add(new MovieItem(m, gui));
 			}
-			for (int i = 0; i < oldLen; i++) {
-				hbox.getChildren().remove(0);
-			}
-			RecMovieList.this.setNeedsLayout(true);
 			System.out.println("RecMovieListUpdater end");
 		}
 	}
@@ -37,7 +35,8 @@ public class RecMovieList extends Parent {
 	private GUI gui;
 
 	private static final int SPACE = 10;
-	private static final int HEIGHT = 400;
+
+	private static final int MIN = 5;
 
 	private HBox hbox = new HBox(SPACE);
 
@@ -48,8 +47,13 @@ public class RecMovieList extends Parent {
 
 		this.setEffect(shadow);
 
-		hbox.setAlignment(Pos.CENTER);
-		hbox.setPrefHeight(HEIGHT);
+		hbox.setAlignment(Pos.TOP_CENTER);
 		this.getChildren().addAll(hbox);
+	}
+
+	public void next() {
+		if (hbox.getChildren().size() > MIN) {
+			hbox.getChildren().remove(0);
+		}
 	}
 }

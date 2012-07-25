@@ -39,6 +39,9 @@ public class MasterDataCombiner implements DataCombiner {
 		}
 		// calc average
 		multiplyVec(ret, 1 / total);
+		for (Double d : ret) {
+			System.out.print(d + "  ");
+		}
 		System.out.println(ret.size());
 		System.out.println("combine end");
 	}

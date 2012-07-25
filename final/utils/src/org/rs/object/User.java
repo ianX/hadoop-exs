@@ -4,7 +4,7 @@ import java.io.Serializable;
 
 public class User implements Serializable, Comparable<User> {
 	private static final long serialVersionUID = -7010197333489417337L;
-	private String name = null;
+	private String name = "";
 	private int uid;
 	private double sim = 0;
 
@@ -16,10 +16,18 @@ public class User implements Serializable, Comparable<User> {
 	public User(int uid) {
 		this.uid = uid;
 	}
-	
-	public User(int uid , double sim){
+
+	public User(int uid, double sim) {
 		this.uid = uid;
 		this.sim = sim;
+	}
+
+	public void setName(String name) {
+		this.name = name;
+	}
+
+	public String getName() {
+		return name;
 	}
 
 	public int getUid() {

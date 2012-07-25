@@ -2,6 +2,8 @@ package org.rs.servernode.protocol;
 
 public class Properties {
 
+	public final static String[] NODE_IDS = { Messages.getString("Properties.id0"), Messages.getString("Properties.id1"), Messages.getString("Properties.id2"), Messages.getString("Properties.id3") }; //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$ //$NON-NLS-4$
+
 	// sm protocols
 	public final static int REC_NUM = 10;
 	public final static long NODE_DEAD = 5000;
@@ -21,8 +23,12 @@ public class Properties {
 
 	public final static int IM_DEAD = HEART_BEAT + 1;
 
-	public final static String MOVIE_FILE_PREFIX = "movie*";
-	public final static String USER_FILE_PREFIX = "user*";
+	public final static String MOVIE_FILE_PREFIX = Messages
+			.getString("Properties.movie_prefix"); //$NON-NLS-1$
+	public final static String USER_FILE_PREFIX = Messages
+			.getString("Properties.user_prefix"); //$NON-NLS-1$
+	public final static String MOVIE_TITLES = Messages
+			.getString("Properties.movie_titles"); //$NON-NLS-1$
 
 	// io params
 	static public int NUM_BLOCK = 4;
@@ -31,23 +37,23 @@ public class Properties {
 	static public double reg_ = 2;
 	static public double shrink = 0.95;
 	static public double INFINITY = 1e9;
-	static public int K = 8;
-	static public int MAX_NUM_LIST = 10;
-	static public int MAX_NUM_REC = 1;
-	static public int RANDOM_MAX = 1;
+	static public int K = 10;
+	static public int MAX_NUM_LIST = 20;
+	static public int MAX_NUM_REC = 10;
+	static public int RANDOM_MAX = 100;
 	static public int ROW_SIZE = 18000;
 	static public int COL_SIZE = 10000000;
 
-	static public String BLOCK_PATH = "block";
-	static public String INITIAL_V = "0";
-	static public String INITIAL_U = "1";
-	static public String SEP_RATE = "]";
-	static public String REG_SEP_RATE = "\\]";
-	static public String SEP_ID_RATE = ",";
-	static public String REG_SEP_ID_RATE = ",";
-	static public String SEP_LATENT_VALUE = ",";
-	static public String REG_SEP_LATENT_VALUE = ",";
-	static public String SEP_ID_VECTOR = "\t";
-	static public String REG_SEP_ID_VECTOR = "\t";
+	static public String BLOCK_PATH = "block"; //$NON-NLS-1$
+	static public String INITIAL_V = "0"; //$NON-NLS-1$
+	static public String INITIAL_U = "1"; //$NON-NLS-1$
+	static public String SEP_RATE = "]"; //$NON-NLS-1$
+	static public String REG_SEP_RATE = "\\]"; //$NON-NLS-1$
+	static public String SEP_ID_RATE = ","; //$NON-NLS-1$
+	static public String REG_SEP_ID_RATE = ","; //$NON-NLS-1$
+	static public String SEP_LATENT_VALUE = ","; //$NON-NLS-1$
+	static public String REG_SEP_LATENT_VALUE = ","; //$NON-NLS-1$
+	static public String SEP_ID_VECTOR = "\t"; //$NON-NLS-1$
+	static public String REG_SEP_ID_VECTOR = "\t"; //$NON-NLS-1$
 
 }

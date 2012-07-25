@@ -93,7 +93,7 @@ public class ClientHandler implements ClientHandlerInterface {
 
 	@Override
 	public List<Movie> getRecMovie() {
-		return getMovieList(new ArrayList<Movie>());
+		return getRecMovie(new ArrayList<Movie>());
 	}
 
 	@Override

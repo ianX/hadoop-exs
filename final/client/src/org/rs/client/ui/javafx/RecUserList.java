@@ -14,17 +14,14 @@ public class RecUserList extends Parent {
 	private class RecUserListUpdater implements Runnable {
 		@Override
 		public void run() {
-			System.out.println("RecMovieListUpdater running");
+			System.out.println("RecUserListUpdater running");
+			hbox.getChildren().clear();
 			List<User> recUser = gui.getRecUser();
-			int oldLen = hbox.getChildren().size();
 			for (User u : recUser) {
 				System.out.println(u.toString());
 				hbox.getChildren().add(new UserItem(u, gui));
 			}
-			for (int i = 0; i < oldLen; i++) {
-				hbox.getChildren().remove(0);
-			}
-			System.out.println("RecMovieListUpdater end");
+			System.out.println("RecUserListUpdater end");
 		}
 	}
 
@@ -35,7 +32,7 @@ public class RecUserList extends Parent {
 	private GUI gui;
 
 	private static final int SPACE = 10;
-	private static final int HEIGHT = 400;
+	private static final int MIN = 5;
 
 	private HBox hbox = new HBox(SPACE);
 
@@ -47,8 +44,13 @@ public class RecUserList extends Parent {
 		this.setEffect(shadow);
 
 		hbox.setAlignment(Pos.CENTER);
-		hbox.setPrefHeight(HEIGHT);
 
 		this.getChildren().addAll(hbox);
+	}
+
+	public void next() {
+		if (hbox.getChildren().size() > MIN) {
+			hbox.getChildren().remove(0);
+		}
 	}
 }

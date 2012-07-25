@@ -42,7 +42,7 @@ public class NodeStatus {
 		return host;
 	}
 
-	public Set<String> getUfiles() {
+	public Set<String> getUFiles() {
 		return ufiles;
 	}
 

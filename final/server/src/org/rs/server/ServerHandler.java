@@ -113,6 +113,7 @@ public class ServerHandler implements ServerHandlerInterface {
 	@Override
 	public RetCode sendMovieList() {
 		// System.out.println("sending movie list");
+		movieList.clear();
 		if (sprotocol.sendMovieList(db.getMovieList(movieList), cmdReader,
 				cmdWriter, dataWriter, dataReader) != 0)
 			return RetCode.sendMovieListFailed;
@@ -121,6 +122,7 @@ public class ServerHandler implements ServerHandlerInterface {
 
 	@Override
 	public RetCode sendRecMovie() {
+		recMovie.clear();
 		if (sprotocol.sendRecMovie(db.getRecMovie(movieVector, recMovie),
 				cmdReader, cmdWriter, dataWriter, dataReader) != 0)
 			return RetCode.sendRecMovieFailed;
@@ -129,6 +131,7 @@ public class ServerHandler implements ServerHandlerInterface {
 
 	@Override
 	public RetCode sendRecUser() {
+		recUser.clear();
 		if (sprotocol.sendRecUser(db.getRecUser(userVector, recUser),
 				cmdReader, cmdWriter, dataWriter, dataReader) != 0)
 			return RetCode.sendRecUserFailed;

@@ -19,7 +19,6 @@ public class SlaveNode implements Slave {
 	private class Terminal implements Runnable {
 		@Override
 		public void run() {
-			// TODO Auto-generated method stub
 			BufferedReader br = new BufferedReader(new InputStreamReader(
 					System.in));
 			try {
@@ -30,7 +29,6 @@ public class SlaveNode implements Slave {
 					}
 				}
 			} catch (IOException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 		}
@@ -173,18 +171,21 @@ public class SlaveNode implements Slave {
 			ois.close();
 			socket.close();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 		System.exit(0);
 	}
 
 	public static void main(String[] args) {
-		if (args.length != 3)
-			System.out
-					.println("usage : servernode masterHost nodeID movieNamePath");
-		SlaveNode slaveNode = new SlaveNode(args[0], Integer.parseInt(args[1]),
-				args[2]);
+		if (args.length < 2)
+			System.out.println("usage : servernode masterHost nodeID");
+		SlaveNode slaveNode;
+		if (args.length == 2)
+			slaveNode = new SlaveNode(args[0], Integer.parseInt(args[1]),
+					Properties.MOVIE_TITLES);
+		else
+			slaveNode = new SlaveNode(args[0], Integer.parseInt(args[1]),
+					args[2]);
 		if (slaveNode.initNode() == 0)
 			slaveNode.start();
 		System.out.println("connect error");

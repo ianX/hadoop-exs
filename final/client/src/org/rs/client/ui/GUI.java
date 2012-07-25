@@ -5,21 +5,27 @@ import java.util.Vector;
 
 import javafx.application.Application;
 import javafx.application.Platform;
+import javafx.collections.ObservableList;
 import javafx.event.EventHandler;
 import javafx.scene.Group;
+import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.paint.Color;
-import javafx.scene.shape.Polygon;
+import javafx.scene.shape.Rectangle;
+import javafx.scene.text.Font;
+import javafx.scene.text.Text;
 import javafx.stage.Stage;
 
 import org.rs.client.event.EventType;
 import org.rs.client.ui.javafx.Login;
 import org.rs.client.ui.javafx.MovieList;
+import org.rs.client.ui.javafx.NextButton;
 import org.rs.client.ui.javafx.RecMovieList;
 import org.rs.client.ui.javafx.RecUserList;
+import org.rs.client.ui.www.MovieDetailDetector;
 import org.rs.object.Movie;
 import org.rs.object.User;
 
@@ -38,6 +44,8 @@ public class GUI extends UI {
 	private RecMovieList uiRecMovieList;
 
 	private RecUserList uiRecUserList;
+
+	private NextButton next;
 
 	private String message;
 
@@ -65,6 +73,8 @@ public class GUI extends UI {
 		login = new Login(this);
 
 		root.getChildren().addAll(background, login);
+
+		initError();
 	}
 
 	public State getState() {
@@ -83,71 +93,141 @@ public class GUI extends UI {
 	public void changeState(State newState) {
 		switch (newState) {
 		case CONNECTED:
-			connected();
-			break;
-		case MOVIE_LIST:
-			break;
-		case REC_MOVIE:
-			break;
-		case REC_USER:
+			showMainScene();
 			break;
 		case ERROR:
+			showError();
 			break;
 		default:
 			break;
 		}
 	}
 
-	private final Group nextg = new Group();
-	private final Polygon next = new Polygon();
+	private final Rectangle upper = new Rectangle(800, 160,
+			Color.LIGHTGOLDENRODYELLOW);
+	private final Rectangle lower = new Rectangle(800, 160,
+			Color.LIGHTGOLDENRODYELLOW);
 
-	private void connected() {
-		System.out.println("showing");
+	private final Rectangle center = new Rectangle(800, 160,
+			Color.LIGHTGOLDENRODYELLOW);
+
+	private final Group backGroup = new Group();
+
+	private void showMainScene() {
+		next = new NextButton();
+		next.setOnMouseClicked(new NextEventHandler());
 		uiMovieList = new MovieList(this);
-		System.out.println("showing rec movie");
 		uiRecMovieList = new RecMovieList(this);
-		System.out.println("showing rec user");
 		uiRecUserList = new RecUserList(this);
 		root.getChildren().remove(login);
 		uiRecMovieList.relocate(0, 0);
-		uiMovieList.relocate(0, 100);
-		uiRecUserList.relocate(0, 200);
+		uiMovieList.relocate(0, 195);
+		uiRecUserList.relocate(0, 400);
 
-		next.getPoints().addAll(
-				new Double[] { 0.0, 0.0, 0.0, 100.0, 50.0, 50.0 });
-		next.setFill(Color.LIGHTGREEN);
-		next.setOpacity(0.3);
-		nextg.getChildren().add(next);
+		upper.relocate(0, 0);
+		center.relocate(0, 220);
+		lower.relocate(0, 440);
+		upper.setOpacity(0.0);
+		center.setOpacity(0.0);
+		lower.setOpacity(0.0);
+		upper.setOnMouseEntered(new BackEventHandler(0));
+		center.setOnMouseEntered(new BackEventHandler(1));
+		lower.setOnMouseEntered(new BackEventHandler(2));
+		backGroup.getChildren().addAll(upper, center, lower);
 
-		nextg.relocate(750, 150);
+		root.getChildren().addAll(uiRecMovieList, uiMovieList, uiRecUserList,
+				next, backGroup);
+		center.setVisible(false);
+		this.setState(State.MOVIE_LIST);
+	}
 
-		nextg.setOnMouseEntered(new EventHandler<MouseEvent>() {
+	private final Group errGroup = new Group();
+	private final Rectangle errorPane = new Rectangle(800, 600);
+	private final Text errText = new Text();
 
+	private void initError() {
+		errorPane.setFill(Color.DARKGRAY);
+		errorPane.setOpacity(0.5);
+		errText.setFont(new Font(30));
+		errText.setWrappingWidth(300);
+		errText.setFill(Color.RED);
+		errText.relocate(120, 100);
+		errGroup.getChildren().addAll(errorPane, errText);
+	}
+
+	private void showError() {
+		errText.setText(message);
+		root.getChildren().add(errGroup);
+		errGroup.setOnMouseClicked(new EventHandler<MouseEvent>() {
 			@Override
 			public void handle(MouseEvent event) {
-				next.setScaleX(1.1);
-				next.setScaleY(1.1);
-				next.setFill(Color.GREEN);
-				next.setOpacity(0.5);
+				root.getChildren().remove(errGroup);
 			}
 
 		});
+	}
 
-		nextg.setOnMouseExited(new EventHandler<MouseEvent>() {
+	private class NextEventHandler implements EventHandler<MouseEvent> {
 
-			@Override
-			public void handle(MouseEvent event) {
-				next.setScaleX(1.0);
-				next.setScaleY(1.0);
-				next.setFill(Color.LIGHTGREEN);
-				next.setOpacity(0.3);
+		@Override
+		public void handle(MouseEvent event) {
+			switch (next.getCurrentPos()) {
+			case 0:
+				uiRecMovieList.next();
+				break;
+			case 1:
+				uiMovieList.next();
+				break;
+			case 2:
+				uiRecUserList.next();
+				break;
+			default:
+				break;
 			}
+		}
 
-		});
+	}
 
-		System.out.println("showing main pane");
-		root.getChildren().addAll(uiRecMovieList, uiRecUserList, uiMovieList,
-				nextg);
+	private class BackEventHandler implements EventHandler<MouseEvent> {
+
+		private int index;
+
+		public BackEventHandler(int index) {
+			this.index = index;
+		}
+
+		@Override
+		public void handle(MouseEvent event) {
+			backGroup.getChildren().get(index).setVisible(false);
+			backGroup.getChildren().get((index + 1) % 3).setVisible(true);
+			backGroup.getChildren().get((index + 2) % 3).setVisible(true);
+
+			ObservableList<Node> children = root.getChildren();
+			children.get(1 + index).setScaleX(1.0);
+			children.get(1 + index).setScaleY(1.0);
+			children.get(1 + (index + 1) % 3).setScaleX(0.8);
+			children.get(1 + (index + 1) % 3).setScaleY(0.8);
+			children.get(1 + (index + 2) % 3).setScaleX(0.8);
+			children.get(1 + (index + 2) % 3).setScaleY(0.8);
+			next.gotoNextTransition(index);
+		}
+
+	}
+
+	@Override
+	public void start(Stage primaryStage) throws Exception {
+		Scene scene = new Scene(root, 800, 600);
+		scene.setFill(Color.LIGHTSTEELBLUE);
+		primaryStage.setResizable(false);
+		primaryStage.setTitle("I am GUI");
+		primaryStage.setScene(scene);
+		primaryStage.centerOnScreen();
+		primaryStage.show();
+	}
+
+	@Override
+	public void stop() throws Exception {
+		cmdClose();
 	}
 
 	public void setUsername(String username) {
@@ -162,31 +242,66 @@ public class GUI extends UI {
 		return recUser;
 	}
 
+	public Object getLoginMutex() {
+		return loginMutex;
+	}
+
+	private class MovieCacher implements Runnable {
+		@Override
+		public void run() {
+			while (true) {
+				int size;
+				synchronized (listMutex) {
+					size = movieList.size();
+					if (size - movieiter < 10) {
+						System.out.println(size + "!!!!!!!!!!!!!!!!!!!!!!"
+								+ movieiter);
+						cmdList();
+					}
+					while (size - movieiter < 10)
+						try {
+							listMutex.wait();
+							size = movieList.size();
+						} catch (InterruptedException e) {
+							e.printStackTrace();
+						}
+				}
+
+				int i = movieiter;
+				while (i < size) {
+					Movie m = movieList.get(i++);
+					if (m.isInited())
+						continue;
+
+					MovieDetailDetector.getMovieDetails(m);
+					MovieDetailDetector.getProperties(m);
+					synchronized (listMutex) {
+						size = movieList.size();
+						listMutex.notifyAll();
+					}
+				}
+			}
+		}
+	}
+
 	public Movie nextMovie() {
+		System.out.println("next movie");
 		synchronized (listMutex) {
-			System.out.println("next movie");
-			if (movieiter < movieList.size())
-				return movieList.get(movieiter++);
-			else {
-				System.out.println("next movie : call cmdList()");
-				this.cmdList();
+			while (movieiter >= movieList.size()) {
 				try {
-					System.out.println("next movie: start waiting");
-					listMutex.wait(1000);
-					System.out.println("next movie: end waiting");
+					listMutex.wait();
 				} catch (InterruptedException e) {
 					e.printStackTrace();
 				}
 			}
 		}
-		if (movieiter < movieList.size())
-			return movieList.get(movieiter++);
-		else
-			return null;
-	}
 
-	public Object getLoginMutex() {
-		return loginMutex;
+		Movie ret = null;
+		synchronized (listMutex) {
+			if (movieiter < movieList.size())
+				ret = movieList.get(movieiter++);
+		}
+		return ret;
 	}
 
 	public void cmdConnect(String[] args) {
@@ -211,9 +326,10 @@ public class GUI extends UI {
 	@Override
 	public void printMovieList(List<Movie> list) {
 		synchronized (listMutex) {
-			System.out.println("print movie list");
 			movieList.addAll(list);
-			listMutex.notify();
+			System.out.println("print movie list : " + movieList.size() + "  "
+					+ movieiter + " " + list.size());
+			listMutex.notifyAll();
 		}
 	}
 
@@ -247,6 +363,7 @@ public class GUI extends UI {
 	@Override
 	public void printConnectMessage(String message) {
 		this.cmdList();
+		new Thread(new MovieCacher()).start();
 		synchronized (loginMutex) {
 			setMessage(message);
 			setState(State.CONNECTED);
@@ -256,6 +373,8 @@ public class GUI extends UI {
 
 	@Override
 	public void printCloseMessage(String message) {
+		setMessage(message);
+		changeState(State.ERROR);
 	}
 
 	@Override
@@ -263,30 +382,13 @@ public class GUI extends UI {
 		try {
 			super.stop();
 		} catch (Exception e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	}
 
 	@Override
 	public void clear() {
-	}
-
-	@Override
-	public void start(Stage primaryStage) throws Exception {
-		Scene scene = new Scene(root, 800, 600);
-		scene.setFill(Color.DARKSLATEGREY);
-		primaryStage.setResizable(false);
-		// primaryStage.setFullScreen(true);
-		primaryStage.setTitle("I am GUI");
-		primaryStage.setScene(scene);
-		primaryStage.centerOnScreen();
-		primaryStage.show();
-	}
-
-	@Override
-	public void stop() throws Exception {
-		cmdClose();
+		// do nothing
 	}
 
 	public static class UIStarter implements UI.UIStarter {

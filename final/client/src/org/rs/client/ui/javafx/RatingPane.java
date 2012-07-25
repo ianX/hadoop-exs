@@ -13,13 +13,11 @@ public class RatingPane extends HBox {
 		private int index;
 
 		public MouseClickedHandler(int index) {
-			// TODO Auto-generated constructor stub
 			this.index = index;
 		}
 
 		@Override
 		public void handle(MouseEvent event) {
-			// TODO Auto-generated method stub
 			synchronized (RatingPane.this) {
 				if (rated)
 					return;
@@ -40,12 +38,12 @@ public class RatingPane extends HBox {
 	private final Circle[] circle = new Circle[6];
 
 	public RatingPane(MovieItem item) {
-		super(10);
-
 		this.item = item;
+		
+		this.setSpacing(8);
 
 		for (int i = 0; i < 6; i++) {
-			circle[i] = new Circle(8, Color.LIGHTGREEN);
+			circle[i] = new Circle(7, Color.LIGHTGREEN);
 			this.getChildren().add(circle[i]);
 			final int j = i;
 

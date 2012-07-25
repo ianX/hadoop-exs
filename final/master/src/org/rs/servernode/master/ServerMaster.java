@@ -71,6 +71,8 @@ public class ServerMaster implements Master {
 
 	private Set<Integer> registeredNode = new HashSet<Integer>();
 
+	private int nodeNum;
+
 	private SSPServerControl control = new SSPServerControl();
 
 	private Map<Integer, NodeStatus> nodeStatus = new HashMap<Integer, NodeStatus>();
@@ -79,6 +81,10 @@ public class ServerMaster implements Master {
 
 	private Object heartBeatMutex = new Object();
 
+	public ServerMaster(int nodeNum) {
+		this.nodeNum = nodeNum;
+	}
+
 	private void dispatchFiles(String path) {
 		try {
 			FileSystem fs = FileSystem.get(new Configuration());
@@ -86,42 +92,15 @@ public class ServerMaster implements Master {
 					+ Properties.MOVIE_FILE_PREFIX));
 			FileStatus[] users = fs.globStatus(new Path(path
 					+ Properties.USER_FILE_PREFIX));
-			int nodeNum = control.getConnected();
-			if (nodeNum <= 0)
-				throw new IOException("no node connceted");
-			int mean = movies.length / nodeNum;
-			int left = movies.length % nodeNum;
-			synchronized (nodeStatusMutex) {
-				int index = 0;
-				for (NodeStatus node : nodeStatus.values()) {
-					if (node.isAlive()) {
-						for (int i = 0; i < mean; i++) {
-							if (index >= movies.length)
-								break;
-							node.addMFile(movies[index++].getPath().toString());
-						}
-						if (left-- > 0 && index < movies.length)
-							node.addMFile(movies[index++].getPath().toString());
-					}
-				}
+			String[] m = new String[movies.length];
+			String[] u = new String[users.length];
+			for (int i = 0; i < movies.length; i++) {
+				m[i] = movies[i].getPath().toString();
 			}
-			mean = users.length / nodeNum;
-			left = users.length % nodeNum;
-			synchronized (nodeStatusMutex) {
-				int index = 0;
-				for (NodeStatus node : nodeStatus.values()) {
-					if (node.isAlive()) {
-						for (int i = 0; i < mean; i++) {
-							if (index >= users.length)
-								break;
-							node.addUFile(users[index++].getPath().toString());
-						}
-						if (left-- > 0 && index < users.length)
-							node.addUFile(users[index++].getPath().toString());
-					}
-				}
+			for (int i = 0; i < users.length; i++) {
+				u[i] = users[i].getPath().toString();
 			}
-			control.addFiles();
+			dispatch(m, u);
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -129,7 +108,49 @@ public class ServerMaster implements Master {
 		}
 	}
 
+	public void dispatch(String[] movies, String[] users) throws IOException {
+		int nodeNum = control.getConnected();
+		if (nodeNum <= 0)
+			throw new IOException("no node connceted");
+		int mean = movies.length / nodeNum;
+		int left = movies.length % nodeNum;
+		synchronized (nodeStatusMutex) {
+			int index = 0;
+			for (NodeStatus node : nodeStatus.values()) {
+				if (node.isAlive()) {
+					for (int i = 0; i < mean; i++) {
+						if (index >= movies.length)
+							break;
+						node.addMFile(movies[index++]);
+					}
+					if (left-- > 0 && index < movies.length)
+						node.addMFile(movies[index++]);
+				}
+			}
+		}
+		mean = users.length / nodeNum;
+		left = users.length % nodeNum;
+		synchronized (nodeStatusMutex) {
+			int index = 0;
+			for (NodeStatus node : nodeStatus.values()) {
+				if (node.isAlive()) {
+					for (int i = 0; i < mean; i++) {
+						if (index >= users.length)
+							break;
+						node.addUFile(users[index++]);
+					}
+					if (left-- > 0 && index < users.length)
+						node.addUFile(users[index++]);
+				}
+			}
+		}
+		control.addFiles();
+	}
+
 	private boolean initfinished = false;
+
+	private Vector<String> movies = new Vector<String>();
+	private Vector<String> users = new Vector<String>();
 
 	@Override
 	public void run() {
@@ -155,9 +176,17 @@ public class ServerMaster implements Master {
 			while (true) {
 				try {
 					heartBeatMutex.wait();
-					control.refreshStatus();
+					control.refreshStatus(movies, users);
+					if (movies.size() == 0 && users.size() == 0)
+						continue;
+
+					try {
+						dispatch(movies.toArray(new String[0]),
+								users.toArray(new String[0]));
+					} catch (IOException e) {
+						e.printStackTrace();
+					}
 				} catch (InterruptedException e) {
-					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
 			}
@@ -173,7 +202,10 @@ public class ServerMaster implements Master {
 
 	@Override
 	public int InitAssemblage() {
-		registeredNode.add(0);
+		String[] ids = Properties.NODE_IDS;
+		for (int i = 0; i < nodeNum && i < ids.length; i++) {
+			registeredNode.add(Integer.parseInt(ids[i]));
+		}
 		control.init(nodeStatus, registeredNode, nodeStatusMutex);
 		return 0;
 	}
@@ -254,6 +286,7 @@ public class ServerMaster implements Master {
 				weights.add(handler.getWeight());
 			}
 		}
+
 		if (isMovie) {
 			combiner.combineMovieVector(rets, weights, ret);
 		} else {

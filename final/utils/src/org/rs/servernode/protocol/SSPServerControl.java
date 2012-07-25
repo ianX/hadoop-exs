@@ -7,6 +7,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.Map;
 import java.util.Set;
+import java.util.Vector;
 
 public class SSPServerControl implements Runnable {
 
@@ -49,15 +50,42 @@ public class SSPServerControl implements Runnable {
 			if (nodeid == -1)
 				return;
 
+			boolean needDispatch = false;
 			synchronized (mutex) {
 				if (nodeStatus.containsKey(nodeid)) {
+					needDispatch = true;
 					node = nodeStatus.get(nodeid);
 					node.setOos(oos);
+					node.setAlive(true);
+					Set<String> movies = node.getMFiles();
+					Set<String> users = node.getUFiles();
+					node.getMFilesToAdd().clear();
+					node.getUFilesToAdd().clear();
+					node.getMFilesToAdd().addAll(movies);
+					node.getUFilesToAdd().addAll(users);
+					for (String m : movies) {
+						for (NodeStatus node : nodeStatus.values()) {
+							if (node.getMFiles().contains(m))
+								node.addMFileToRemove(m);
+						}
+					}
+					for (String u : users) {
+						for (NodeStatus node : nodeStatus.values()) {
+							if (node.getUFiles().contains(u))
+								node.addUFileToRemove(u);
+						}
+					}
 				} else {
 					node = new NodeStatus(nodeid, oos);
 					nodeStatus.put(nodeid, node);
 				}
+				node.setHost(socket.getInetAddress().getHostAddress());
 				connected++;
+			}
+
+			if (needDispatch) {
+				SSPServerControl.this.addFiles();
+				SSPServerControl.this.filesToRemove();
 			}
 
 			synchronized (SSPServerControl.this) {
@@ -94,15 +122,22 @@ public class SSPServerControl implements Runnable {
 	private int connected = 0;
 	private Object mutex;
 
-	public void refreshStatus() {
+	public void refreshStatus(Vector<String> movies, Vector<String> users) {
+		movies.clear();
+		users.clear();
 		synchronized (mutex) {
 			for (NodeStatus node : nodeStatus.values()) {
 				if (node.getLastContact() >= Properties.NODE_DEAD) {
 					node.setAlive(false);
+					movies.addAll(node.getMFiles());
+					movies.addAll(node.getMFilesToAdd());
+					users.addAll(node.getUFiles());
+					users.addAll(node.getUFilesToAdd());
 					connected--;
 				}
 			}
 		}
+
 	}
 
 	public int getConnected() {
@@ -152,6 +187,9 @@ public class SSPServerControl implements Runnable {
 	public void addFiles() {
 		synchronized (mutex) {
 			for (NodeStatus node : nodeStatus.values()) {
+				if (node.getMFilesToAdd().size() == 0
+						&& node.getUFilesToAdd().size() == 0)
+					continue;
 				try {
 					System.out.println(node.getMFilesToAdd().size());
 					System.out.println(node.getUFilesToAdd().size());
@@ -175,6 +213,9 @@ public class SSPServerControl implements Runnable {
 	public void filesToRemove() {
 		synchronized (mutex) {
 			for (NodeStatus node : nodeStatus.values()) {
+				if (node.getMFilesToRemove().size() == 0
+						&& node.getUFilesToRemove().size() == 0)
+					continue;
 				try {
 					ObjectOutputStream oos = node.getOos();
 					oos.writeInt(Properties.FILES_TO_REOMVE);

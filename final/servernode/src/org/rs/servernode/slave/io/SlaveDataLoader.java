@@ -2,6 +2,7 @@ package org.rs.servernode.slave.io;
 
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -49,6 +50,8 @@ public class SlaveDataLoader implements DataLoader {
 				e.printStackTrace();
 			}
 		}
+		System.out.println("movie:" + movieRec.size() + "  user:"
+				+ userRec.size());
 	}
 
 	@Override
@@ -101,11 +104,17 @@ public class SlaveDataLoader implements DataLoader {
 	public void getRecMovie(List<Double> movieVector, List<Movie> ret) {
 		ret.clear();
 
+		System.out.println("getRecMovie " + "movie:" + movieRec.size()
+				+ "  user:" + userRec.size());
 		System.out.println("movieVector size: " + movieVector.size());
 		for (Integer i : movieRec.keySet())
 			if (movieState.get(i).booleanValue() == true) {
 				double rating = MFRoutines.calRating(movieVector,
 						movieRec.get(i));
+				// System.out.println("movierec:" + i);
+				if (!id2Movie.containsKey(i)) {
+					continue;
+				}
 				id2Movie.get(i).setRating(rating);
 
 				if (ret.size() < Properties.MAX_NUM_REC)
@@ -122,6 +131,8 @@ public class SlaveDataLoader implements DataLoader {
 	public void getRecUser(List<Double> userVector, List<User> ret) {
 		ret.clear();
 
+		System.out.println("getRecUser " + "movie:" + movieRec.size()
+				+ "  user:" + userRec.size());
 		for (Integer i : userRec.keySet())
 			if (userState.get(i).booleanValue() == true) {
 				double sim = MFRoutines.calRating(userVector, userRec.get(i));
@@ -136,14 +147,38 @@ public class SlaveDataLoader implements DataLoader {
 			}
 	}
 
+	private Set<Integer> listset = new HashSet<Integer>();
+
 	@Override
 	public void getMovieList(List<Movie> ret) {
 		ret.clear();
 		Random rnd = new Random(System.currentTimeMillis());
-		for (Integer i : movieRec.keySet())
-			if (rnd.nextInt(Properties.RANDOM_MAX) == 0)
-				if (ret.size() < Properties.MAX_NUM_LIST)
-					ret.add(id2Movie.get(i));
+		int size = movieRec.size();
+
+		listset.clear();
+
+		while (listset.size() < Properties.MAX_NUM_LIST) {
+			int index;
+			do {
+				index = rnd.nextInt(size) + 1;
+			} while (listset.contains(index));
+			listset.add(index);
+		}
+
+		for (Integer index : listset) {
+			ret.add(id2Movie.get(index));
+			System.out.println("getMovieList: " + id2Movie.get(index).getMid()
+					+ " " + id2Movie.get(index).toString());
+		}
+		System.out
+				.println("****************************************************************");
+		/*
+		 * for (Integer i : movieRec.keySet()) { if
+		 * (rnd.nextInt(Properties.RANDOM_MAX) == 0) if (ret.size() <
+		 * Properties.MAX_NUM_LIST) { System.out.println("getMovieList: " +
+		 * id2Movie.get(i).getMid() + " " + id2Movie.get(i).toString());
+		 * ret.add(id2Movie.get(i)); } }
+		 */
 	}
 
 }

@@ -3,13 +3,22 @@ package org.rs.object;
 import java.io.Serializable;
 
 public class Movie implements Serializable, Comparable<Movie> {
-	private static final long serialVersionUID = 6054453888751836297L;
+	private static final long serialVersionUID = -3203272960954382722L;
 	private String name = null;
 	private int mid = -1;
 	private double rating = 0;
 	private String imageURL = null;
 	private String movieURL = null;
 	private String[] properties = null;
+	private boolean inited = false;
+
+	public boolean isInited() {
+		return inited;
+	}
+
+	public void inited() {
+		this.inited = true;
+	}
 
 	public Movie(int id) {
 		this.mid = id;

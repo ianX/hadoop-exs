@@ -71,7 +71,16 @@ public class Server {
 	 *            [2] userNamePath <br>
 	 */
 	public static void main(String[] args) {
-		DTEventListenser listener = new ServerMaster();
+		int num = 4;
+		if (args.length > 2) {
+			if (args[0].equals("-n")) {
+				num = Integer.parseInt(args[1]);
+				for (int i = 2; i < args.length; i++) {
+					args[i - 2] = args[i];
+				}
+			}
+		}
+		DTEventListenser listener = new ServerMaster(num);
 		DataGetter db = new MasterDataGetter(listener);
 		Server server = new Server(db);
 		server.parseArgs(args);

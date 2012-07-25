@@ -7,6 +7,8 @@ import javafx.scene.Parent;
 import javafx.scene.control.Button;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.VBox;
+import javafx.scene.paint.Color;
+import javafx.scene.text.Font;
 import javafx.scene.text.Text;
 
 import org.rs.client.ui.GUI;
@@ -20,6 +22,8 @@ public class Login extends Parent {
 		final TextField port = new TextField();
 		port.setPromptText("server port");
 		final Button button = new Button("Login");
+		button.setFont(new Font(14));
+		button.setTextFill(Color.GREEN);
 
 		final Text errmess = new Text();
 

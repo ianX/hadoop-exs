@@ -64,7 +64,7 @@ public class Client implements UIEventListener {
 		}
 	}
 
-	private Map<Integer, Movie> movieList = new HashMap<Integer, Movie>();
+	private Map<Integer, Movie> movieMap = new HashMap<Integer, Movie>();
 	private List<Movie> recMovie = new Vector<Movie>();
 	private List<User> recUser = new Vector<User>();
 
@@ -115,14 +115,8 @@ public class Client implements UIEventListener {
 		if (!this.connected)
 			this.notConnected(ui);
 		List<Movie> list = handler.getMovieList();
-		Iterator<Movie> iterator = list.iterator();
-		while (iterator.hasNext()) {
-			Movie m = iterator.next();
-			if (m == null || m.getName() == null) {
-				iterator.remove();
-			} else {
-				movieList.put(m.getMid(), m);
-			}
+		for (Movie m : list) {
+			movieMap.put(m.getMid(), m);
 		}
 		ui.printMovieList(list);
 	}
@@ -131,7 +125,7 @@ public class Client implements UIEventListener {
 		UI ui = event.getUi();
 		try {
 			Movie movie = event.getMovie();
-			if (!this.movieList.values().contains(movie))
+			if (!this.movieMap.values().contains(movie))
 				throw new Exception("movie not exist!");
 			handler.addRating(movie, event.getRating());
 			this.listRecMovie(ui);
@@ -153,13 +147,11 @@ public class Client implements UIEventListener {
 				String mid = params[0];
 				int rating = Integer.parseInt(params[1]);
 				if (rating < 0 || rating > 5)
-					throw new NumberFormatException("port not in [0,5]!");
+					throw new NumberFormatException("rating not in [0,5]!");
 				int id = Integer.parseInt(mid);
-				if (!this.movieList.containsKey(id))
+				if (!this.movieMap.containsKey(id))
 					throw new Exception("movie not exist!");
-				// System.out.println("cli:" + movieList.get(id).getName() + " "
-				// + movieList.get(id).getMid());
-				handler.addRating(movieList.get(id), rating);
+				handler.addRating(movieMap.get(id), rating);
 				this.listRecMovie(ui);
 				this.listRecUser(ui);
 			} catch (NumberFormatException e) {
@@ -180,6 +172,11 @@ public class Client implements UIEventListener {
 		if (!this.connected)
 			this.notConnected(ui);
 		recMovie = handler.getRecMovie(recMovie);
+		System.out.println("recMovie: " + recMovie.size());
+		for (Movie m : recMovie) {
+			movieMap.put(m.getMid(), m);
+			System.out.println(m.getMid() + " " + m.toString());
+		}
 		ui.printRecMovie(recMovie);
 	}
 
