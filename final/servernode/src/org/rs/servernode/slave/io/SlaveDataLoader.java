@@ -2,11 +2,11 @@ package org.rs.servernode.slave.io;
 
 import java.io.IOException;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.Set;
+import java.util.Vector;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -39,7 +39,7 @@ public class SlaveDataLoader implements DataLoader {
 	@Override
 	public void addFiles(Set<String> files, boolean isMovie) {
 		Configuration conf = new Configuration();
-
+		System.out.println("adding files :");
 		for (String file : files) {
 			System.out.println("add file:" + file);
 			try {
@@ -82,16 +82,34 @@ public class SlaveDataLoader implements DataLoader {
 		for (int i = 0; i < Properties.K; i++)
 			ret.add(0.0);
 
+		System.out.println("getting movie vector : " + rating.size());
+
 		int mid;
+		Vector<Double> v = new Vector<Double>();
 		for (Movie movie : rating.keySet()) {
 			mid = movie.getMid();
+			int rate = rating.get(movie);
+			System.out.println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n"
+					+ movie.getMid() + " " + movie.getName() + " " + rate);
 			if (movieRec.containsKey(mid))
 				if (movieState.get(mid).booleanValue() == true) {
-					MFRoutines.addList(ret, movieRec.get(mid));
-					num++;
+					for (Double d : movieRec.get(mid)) {
+						System.out.print(d + " ");
+					}
+					v.clear();
+					v.addAll(movieRec.get(mid));
+					MFRoutines.multiplyVec(v, rate);
+					MFRoutines.addList(ret, v);
+					num += rate;
 				}
+			System.out.println("\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
 		}
 		MFRoutines.aveList(ret, num);
+		System.out.println("############################################");
+		for (Double d : ret) {
+			System.out.print(d + " ");
+		}
+		System.out.println("\n############################################");
 		return num;
 	}
 
@@ -147,38 +165,38 @@ public class SlaveDataLoader implements DataLoader {
 			}
 	}
 
-	private Set<Integer> listset = new HashSet<Integer>();
+	// private Set<Integer> listset = new HashSet<Integer>();
+
+	private Random rnd = new Random(System.currentTimeMillis());
 
 	@Override
 	public void getMovieList(List<Movie> ret) {
-		ret.clear();
-		Random rnd = new Random(System.currentTimeMillis());
-		int size = movieRec.size();
-
-		listset.clear();
-
-		while (listset.size() < Properties.MAX_NUM_LIST) {
-			int index;
-			do {
-				index = rnd.nextInt(size) + 1;
-			} while (listset.contains(index));
-			listset.add(index);
-		}
-
-		for (Integer index : listset) {
-			ret.add(id2Movie.get(index));
-			System.out.println("getMovieList: " + id2Movie.get(index).getMid()
-					+ " " + id2Movie.get(index).toString());
-		}
-		System.out
-				.println("****************************************************************");
 		/*
-		 * for (Integer i : movieRec.keySet()) { if
-		 * (rnd.nextInt(Properties.RANDOM_MAX) == 0) if (ret.size() <
-		 * Properties.MAX_NUM_LIST) { System.out.println("getMovieList: " +
-		 * id2Movie.get(i).getMid() + " " + id2Movie.get(i).toString());
-		 * ret.add(id2Movie.get(i)); } }
+		 * ret.clear(); int size = movieRec.size();
+		 * 
+		 * listset.clear();
+		 * 
+		 * while (listset.size() < Properties.MAX_NUM_LIST) { int index; do {
+		 * index = rnd.nextInt(size) + 1; } while (listset.contains(index));
+		 * listset.add(index); }
+		 * 
+		 * for (Integer index : listset) { ret.add(id2Movie.get(index));
+		 * System.out.println("getMovieList: " + id2Movie.get(index).getMid() +
+		 * " " + id2Movie.get(index).toString()); }
 		 */
+
+		System.out.println("***********************************************");
+		for (Integer i : movieRec.keySet()) {
+			if (rnd.nextInt(Properties.RANDOM_MAX) == 0)
+				if (ret.size() < Properties.MAX_NUM_LIST) {
+					System.out.println("getMovieList: "
+							+ id2Movie.get(i).getMid() + " "
+							+ id2Movie.get(i).toString());
+					ret.add(id2Movie.get(i));
+				}
+		}
+		System.out.println("***********************************************");
+
 	}
 
 }

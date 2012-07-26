@@ -97,7 +97,7 @@ public class Client implements UIEventListener {
 			this.connected = true;
 			ui.printConnectMessage("connect success");
 		} else {
-			ui.printConnectMessage("connect failed");
+			ui.printErrMessage("connect failed");
 		}
 	}
 

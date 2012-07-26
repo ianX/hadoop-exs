@@ -32,7 +32,7 @@ public class MovieList extends Parent implements ListChangeListener<Node> {
 
 		System.out.println("movielist end");
 		hbox.getChildren().addListener(this);
-		hbox.setAlignment(Pos.CENTER);
+		hbox.setAlignment(Pos.TOP_LEFT);
 
 		this.getChildren().addAll(hbox);
 		Platform.runLater(new Runnable() {

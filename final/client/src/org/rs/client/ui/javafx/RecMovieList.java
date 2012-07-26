@@ -47,7 +47,7 @@ public class RecMovieList extends Parent {
 
 		this.setEffect(shadow);
 
-		hbox.setAlignment(Pos.TOP_CENTER);
+		hbox.setAlignment(Pos.TOP_LEFT);
 		this.getChildren().addAll(hbox);
 	}
 

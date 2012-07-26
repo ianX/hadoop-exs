@@ -16,7 +16,7 @@ public class NextButton extends Group {
 		private double move;
 
 		public NextTransition(int newPos) {
-			move = (newPos - currentPos) * 200;
+			move = (newPos - currentPos) * moveLen;
 			currentPos = newPos;
 			oldY = layoutY;
 			layoutY = oldY + move;
@@ -33,12 +33,20 @@ public class NextButton extends Group {
 		new NextTransition(newPos).play();
 	}
 
+	private double moveLen = 200;
 	private double layoutX = 750;
 	private double layoutY = 210;
 
 	private double oldY = 200;
 
 	private int currentPos = 1;
+
+	public void set(double x, double y, double moveLen) {
+		this.layoutX = x;
+		this.layoutY = y;
+		this.moveLen = moveLen;
+		this.relocate(x, y);
+	}
 
 	private final Polygon next = new Polygon();
 

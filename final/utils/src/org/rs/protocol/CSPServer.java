@@ -7,20 +7,15 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
-import java.util.Set;
 
 import org.rs.object.Movie;
 import org.rs.object.User;
 
 public class CSPServer {
 	private ServerSocket dataServer = null;
-
-	private Set<Integer> recedID = new HashSet<Integer>();
 
 	private int port;
 
@@ -73,15 +68,6 @@ public class CSPServer {
 	public int sendMovieList(List<Movie> list, BufferedReader cmdReader,
 			BufferedWriter cmdWriter, ObjectOutputStream dataWriter,
 			ObjectInputStream dataReader) {
-		Iterator<Movie> iterator = list.iterator();
-		while (iterator.hasNext()) {
-			Movie m = iterator.next();
-			if (this.recedID.contains(m.getMid()))
-				iterator.remove();
-			else
-				recedID.add(m.getMid());
-		}
-
 		try {
 			cmdWriter.write(Commands.LIST_MOVIE_START);
 			cmdWriter.newLine();
@@ -112,6 +98,7 @@ public class CSPServer {
 			cmdWriter.newLine();
 			cmdWriter.flush();
 
+			System.out.println("rec movie : " + list.size());
 			// System.out.println("starting");
 			dataWriter.reset();
 			dataWriter.writeObject(list);
@@ -137,6 +124,7 @@ public class CSPServer {
 			cmdWriter.newLine();
 			cmdWriter.flush();
 
+			System.out.println("rec user : " + list.size());
 			// System.out.println("starting");
 			dataWriter.reset();
 			dataWriter.writeObject(list);

@@ -6,6 +6,7 @@ import java.util.Vector;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.collections.ObservableList;
+import javafx.event.Event;
 import javafx.event.EventHandler;
 import javafx.scene.Group;
 import javafx.scene.Node;
@@ -30,11 +31,11 @@ import org.rs.object.Movie;
 import org.rs.object.User;
 
 public class GUI extends UI {
-
+	
 	public enum State {
 		LOGIN, CONNECTED, MOVIE_LIST, REC_MOVIE, REC_USER, ERROR
 	}
-
+	
 	private Group root;
 
 	private Login login;
@@ -46,6 +47,8 @@ public class GUI extends UI {
 	private RecUserList uiRecUserList;
 
 	private NextButton next;
+
+	private ImageView background;
 
 	private String message;
 
@@ -67,8 +70,7 @@ public class GUI extends UI {
 		root = new Group();
 		Image image = new Image(
 				Login.class.getResourceAsStream("resources/Login.png"));
-		ImageView background = new ImageView();
-		background.setImage(image);
+		background = new ImageView(image);
 
 		login = new Login(this);
 
@@ -120,7 +122,7 @@ public class GUI extends UI {
 		uiRecMovieList = new RecMovieList(this);
 		uiRecUserList = new RecUserList(this);
 		root.getChildren().remove(login);
-		uiRecMovieList.relocate(0, 0);
+		uiRecMovieList.relocate(0, 5);
 		uiMovieList.relocate(0, 195);
 		uiRecUserList.relocate(0, 400);
 
@@ -214,11 +216,59 @@ public class GUI extends UI {
 
 	}
 
+	private void reLayout(double x, double y) {
+
+		background.relocate(x - 800, y - 600);
+		if (state.equals(State.LOGIN))
+			return;
+
+		double pos = y / 3;
+
+		double nx = x - 50;
+		double ny = next.getCurrentPos() * pos + 50;
+
+		next.set(nx, ny, pos);
+
+		uiRecMovieList.relocate(0, 5);
+		uiMovieList.relocate(0, pos + 15);
+		uiRecUserList.relocate(0, 2 * pos + 30);
+
+		upper.relocate(0, 0);
+		center.relocate(0, pos + 20);
+		lower.relocate(0, 2 * pos + 30);
+
+	}
+
+	private Scene scene;
+
+	private class ZoomHandler implements EventHandler<Event> {
+
+		private double x = 800;
+		private double y = 600;
+
+		@Override
+		public void handle(Event event) {
+			// System.out.println("zoom");
+			if (scene.getWidth() == x && scene.getHeight() == y)
+				return;
+
+			x = scene.getWidth();
+			y = scene.getHeight();
+			reLayout(x, y);
+		}
+	}
+
 	@Override
 	public void start(Stage primaryStage) throws Exception {
-		Scene scene = new Scene(root, 800, 600);
+		scene = new Scene(root, 800, 600);
 		scene.setFill(Color.LIGHTSTEELBLUE);
-		primaryStage.setResizable(false);
+
+		primaryStage.addEventHandler(javafx.event.EventType.ROOT,
+				new ZoomHandler());
+
+		// primaryStage.setResizable(false);
+		primaryStage.setMinHeight(600);
+		primaryStage.setMinWidth(600);
 		primaryStage.setTitle("I am GUI");
 		primaryStage.setScene(scene);
 		primaryStage.centerOnScreen();
@@ -280,6 +330,11 @@ public class GUI extends UI {
 						listMutex.notifyAll();
 					}
 				}
+				try {
+					Thread.sleep(300);
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
 			}
 		}
 	}
@@ -338,7 +393,7 @@ public class GUI extends UI {
 		synchronized (recMovieMutex) {
 			this.recMovie.clear();
 			this.recMovie.addAll(list);
-			Platform.runLater(this.uiRecMovieList.getRecMovieListUpdater());
+			Platform.runLater(uiRecMovieList.getRecMovieListUpdater());
 		}
 	}
 
@@ -347,7 +402,7 @@ public class GUI extends UI {
 		synchronized (recUserMutex) {
 			this.recUser.clear();
 			this.recUser.addAll(list);
-			Platform.runLater(this.uiRecUserList.getRecUserListUpdater());
+			Platform.runLater(uiRecUserList.getRecUserListUpdater());
 		}
 	}
 

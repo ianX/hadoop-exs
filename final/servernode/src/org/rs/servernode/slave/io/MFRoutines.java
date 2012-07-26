@@ -166,7 +166,12 @@ public class MFRoutines {
 		return Math.sqrt(ret);
 	}
 
-	// return movieVector * list
+	public static void multiplyVec(List<Double> a, double c) {
+		for (int i = 0; i < a.size(); i++)
+			a.set(i, a.get(i) * c);
+	}
+	
+	// return movieVector * list / (|movieVector|*|list|)
 	public static double calRating(List<Double> movieVector, List<Double> list) {
 		double res = 0;
 		// System.out.println(movieVector.size() + " " + list.size());

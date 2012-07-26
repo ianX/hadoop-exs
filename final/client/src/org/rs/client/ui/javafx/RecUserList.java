@@ -31,7 +31,7 @@ public class RecUserList extends Parent {
 
 	private GUI gui;
 
-	private static final int SPACE = 10;
+	private static final int SPACE = 13;
 	private static final int MIN = 5;
 
 	private HBox hbox = new HBox(SPACE);
@@ -43,7 +43,7 @@ public class RecUserList extends Parent {
 
 		this.setEffect(shadow);
 
-		hbox.setAlignment(Pos.CENTER);
+		hbox.setAlignment(Pos.TOP_LEFT);
 
 		this.getChildren().addAll(hbox);
 	}

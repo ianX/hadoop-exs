@@ -9,6 +9,8 @@ import java.io.ObjectOutputStream;
 import java.io.OutputStreamWriter;
 import java.net.Socket;
 import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Vector;
 
@@ -110,12 +112,35 @@ public class ServerHandler implements ServerHandlerInterface {
 		return RetCode.close;
 	}
 
+	private void listFilter(List<Movie> list) {
+		Iterator<Movie> iterator = list.iterator();
+		while (iterator.hasNext()) {
+			Movie m = iterator.next();
+			System.out.println(m.toString());
+
+			for (Movie movie : userRating.keySet()) {
+				System.out.println(m.toString() + " " + movie.toString());
+				if (m.equals(movie)) {
+					System.out.println("remove");
+					iterator.remove();
+				}
+			}
+
+			// if (this.userRating.containsKey(m.getMid())) {
+			// System.out.println("remove");
+			// iterator.remove();
+			// }
+		}
+	}
+
 	@Override
 	public RetCode sendMovieList() {
 		// System.out.println("sending movie list");
 		movieList.clear();
-		if (sprotocol.sendMovieList(db.getMovieList(movieList), cmdReader,
-				cmdWriter, dataWriter, dataReader) != 0)
+		db.getMovieList(movieList);
+		listFilter(movieList);
+		if (sprotocol.sendMovieList(movieList, cmdReader, cmdWriter,
+				dataWriter, dataReader) != 0)
 			return RetCode.sendMovieListFailed;
 		return RetCode.good;
 	}
@@ -123,8 +148,10 @@ public class ServerHandler implements ServerHandlerInterface {
 	@Override
 	public RetCode sendRecMovie() {
 		recMovie.clear();
-		if (sprotocol.sendRecMovie(db.getRecMovie(movieVector, recMovie),
-				cmdReader, cmdWriter, dataWriter, dataReader) != 0)
+		db.getRecMovie(movieVector, recMovie);
+		listFilter(recMovie);
+		if (sprotocol.sendRecMovie(recMovie, cmdReader, cmdWriter, dataWriter,
+				dataReader) != 0)
 			return RetCode.sendRecMovieFailed;
 		return RetCode.good;
 	}
@@ -143,6 +170,11 @@ public class ServerHandler implements ServerHandlerInterface {
 		if (sprotocol.receiveRating(userRating, cmdReader, cmdWriter,
 				dataWriter, dataReader) != 0)
 			return RetCode.receiveRatingFailed;
+		System.out.println("------------------------------------------");
+		for (Movie m : userRating.keySet()) {
+			System.out.println(m.toString() + " " + userRating.get(m));
+		}
+		System.out.println("------------------------------------------");
 		movieVector = db.getMovieVector(userRating, movieVector);
 		userVector = db.getUserVector(userRating, userVector);
 		System.out.println("ServerHandler: " + movieVector.size()

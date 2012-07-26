@@ -26,6 +26,7 @@ public class SSPServerControl implements Runnable {
 			synchronized (mutex) {
 				node.setAlive(false);
 				try {
+					System.out.println("node : " + node.getNodeId() + " dead");
 					node.getOos().close();
 					this.ois.close();
 					this.socket.close();
@@ -56,7 +57,6 @@ public class SSPServerControl implements Runnable {
 					needDispatch = true;
 					node = nodeStatus.get(nodeid);
 					node.setOos(oos);
-					node.setAlive(true);
 					Set<String> movies = node.getMFiles();
 					Set<String> users = node.getUFiles();
 					node.getMFilesToAdd().clear();
@@ -65,16 +65,21 @@ public class SSPServerControl implements Runnable {
 					node.getUFilesToAdd().addAll(users);
 					for (String m : movies) {
 						for (NodeStatus node : nodeStatus.values()) {
+							if (!node.isAlive())
+								continue;
 							if (node.getMFiles().contains(m))
 								node.addMFileToRemove(m);
 						}
 					}
 					for (String u : users) {
+						if (!node.isAlive())
+							continue;
 						for (NodeStatus node : nodeStatus.values()) {
 							if (node.getUFiles().contains(u))
 								node.addUFileToRemove(u);
 						}
 					}
+					node.setAlive(true);
 				} else {
 					node = new NodeStatus(nodeid, oos);
 					nodeStatus.put(nodeid, node);
@@ -84,8 +89,13 @@ public class SSPServerControl implements Runnable {
 			}
 
 			if (needDispatch) {
-				SSPServerControl.this.addFiles();
-				SSPServerControl.this.filesToRemove();
+				new Thread(new Runnable() {
+					@Override
+					public void run() {
+						SSPServerControl.this.addFiles();
+						SSPServerControl.this.filesToRemove();
+					}
+				}).start();
 			}
 
 			synchronized (SSPServerControl.this) {
@@ -187,21 +197,22 @@ public class SSPServerControl implements Runnable {
 	public void addFiles() {
 		synchronized (mutex) {
 			for (NodeStatus node : nodeStatus.values()) {
-				if (node.getMFilesToAdd().size() == 0
-						&& node.getUFilesToAdd().size() == 0)
-					continue;
 				try {
 					System.out.println(node.getMFilesToAdd().size());
 					System.out.println(node.getUFilesToAdd().size());
 					ObjectOutputStream oos = node.getOos();
-
-					oos.writeInt(Properties.ADD_FILES);
-					oos.writeObject(node.getMFilesToAdd());
-					oos.writeBoolean(true);
-					oos.writeInt(Properties.ADD_FILES);
-					oos.writeObject(node.getUFilesToAdd());
-					oos.writeBoolean(false);
-					oos.flush();
+					if (!(node.getMFilesToAdd().size() == 0)) {
+						oos.writeInt(Properties.ADD_FILES);
+						oos.writeObject(node.getMFilesToAdd());
+						oos.writeBoolean(true);
+						oos.flush();
+					}
+					if (!(node.getUFilesToAdd().size() == 0)) {
+						oos.writeInt(Properties.ADD_FILES);
+						oos.writeObject(node.getUFilesToAdd());
+						oos.writeBoolean(false);
+						oos.flush();
+					}
 					node.fileAdded();
 				} catch (IOException e) {
 					e.printStackTrace();
@@ -213,18 +224,20 @@ public class SSPServerControl implements Runnable {
 	public void filesToRemove() {
 		synchronized (mutex) {
 			for (NodeStatus node : nodeStatus.values()) {
-				if (node.getMFilesToRemove().size() == 0
-						&& node.getUFilesToRemove().size() == 0)
-					continue;
 				try {
 					ObjectOutputStream oos = node.getOos();
-					oos.writeInt(Properties.FILES_TO_REOMVE);
-					oos.writeObject(node.getMFilesToRemove());
-					oos.writeBoolean(true);
-					oos.writeInt(Properties.FILES_TO_REOMVE);
-					oos.writeObject(node.getUFilesToRemove());
-					oos.writeBoolean(false);
-					oos.flush();
+					if (!(node.getMFilesToRemove().size() == 0)) {
+						oos.writeInt(Properties.FILES_TO_REOMVE);
+						oos.writeObject(node.getMFilesToRemove());
+						oos.writeBoolean(true);
+						oos.flush();
+					}
+					if (!(node.getUFilesToRemove().size() == 0)) {
+						oos.writeInt(Properties.FILES_TO_REOMVE);
+						oos.writeObject(node.getUFilesToRemove());
+						oos.writeBoolean(false);
+						oos.flush();
+					}
 				} catch (IOException e) {
 					e.printStackTrace();
 				}

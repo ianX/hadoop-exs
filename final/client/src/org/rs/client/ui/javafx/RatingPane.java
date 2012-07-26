@@ -23,11 +23,11 @@ public class RatingPane extends HBox {
 					return;
 				rated = true;
 			}
-			circle[0].setFill(Color.DARKGRAY);
-			for (int k = 1; k <= index; k++) {
-				circle[k].setFill(Color.YELLOWGREEN);
+			// circle[0].setFill(Color.DARKGRAY);
+			for (int k = 0; k <= index; k++) {
+				circle[k].setFill(Color.RED);
 			}
-			item.urating(index);
+			item.urating(index + 1);
 		}
 	}
 
@@ -35,14 +35,14 @@ public class RatingPane extends HBox {
 
 	private MovieItem item;
 
-	private final Circle[] circle = new Circle[6];
+	private final Circle[] circle = new Circle[5];
 
 	public RatingPane(MovieItem item) {
 		this.item = item;
-		
-		this.setSpacing(8);
 
-		for (int i = 0; i < 6; i++) {
+		this.setSpacing(10);
+
+		for (int i = 0; i < 5; i++) {
 			circle[i] = new Circle(7, Color.LIGHTGREEN);
 			this.getChildren().add(circle[i]);
 			final int j = i;
@@ -53,9 +53,9 @@ public class RatingPane extends HBox {
 				public void handle(MouseEvent event) {
 					if (RatingPane.this.rated)
 						return;
-					circle[0].setFill(Color.DARKGRAY);
-					for (int k = 1; k <= j; k++) {
-						circle[k].setFill(Color.YELLOWGREEN);
+					// circle[0].setFill(Color.DARKGRAY);
+					for (int k = 0; k <= j; k++) {
+						circle[k].setFill(Color.RED);
 					}
 				}
 			});
@@ -71,7 +71,7 @@ public class RatingPane extends HBox {
 			public void handle(MouseEvent event) {
 				if (RatingPane.this.rated)
 					return;
-				for (int k = 0; k < 6; k++) {
+				for (int k = 0; k < 5; k++) {
 					circle[k].setFill(Color.LIGHTGREEN);
 				}
 			}

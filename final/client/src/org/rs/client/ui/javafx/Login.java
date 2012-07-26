@@ -53,8 +53,7 @@ public class Login extends Parent {
 					Object mutex = gui.getLoginMutex();
 					boolean error = false;
 					synchronized (mutex) {
-						while (!gui.getState()
-								.equals(GUI.State.CONNECTED)) {
+						while (!gui.getState().equals(GUI.State.CONNECTED)) {
 							try {
 								System.out.println("start waiting");
 								mutex.wait();
@@ -62,8 +61,7 @@ public class Login extends Parent {
 							} catch (InterruptedException e) {
 								e.printStackTrace();
 							}
-							if (gui.getState()
-									.equals(GUI.State.ERROR)) {
+							if (gui.getState().equals(GUI.State.ERROR)) {
 								error = true;
 								break;
 							}

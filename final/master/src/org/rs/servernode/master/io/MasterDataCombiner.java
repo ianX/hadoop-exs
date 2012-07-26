@@ -72,6 +72,11 @@ public class MasterDataCombiner implements DataCombiner {
 			tmp.setRating(-1);
 			ret.add(tmp);
 		}
+		System.out.println("============================================");
+		for (Movie m : ret) {
+			System.out.println(m.getMid() + " " + m.toString());
+		}
+		System.out.println("============================================");
 	}
 
 	@Override
