@@ -165,35 +165,21 @@ public class SlaveDataLoader implements DataLoader {
 			}
 	}
 
-	// private Set<Integer> listset = new HashSet<Integer>();
-
 	private Random rnd = new Random(System.currentTimeMillis());
 
 	@Override
 	public void getMovieList(List<Movie> ret) {
-		/*
-		 * ret.clear(); int size = movieRec.size();
-		 * 
-		 * listset.clear();
-		 * 
-		 * while (listset.size() < Properties.MAX_NUM_LIST) { int index; do {
-		 * index = rnd.nextInt(size) + 1; } while (listset.contains(index));
-		 * listset.add(index); }
-		 * 
-		 * for (Integer index : listset) { ret.add(id2Movie.get(index));
-		 * System.out.println("getMovieList: " + id2Movie.get(index).getMid() +
-		 * " " + id2Movie.get(index).toString()); }
-		 */
 
 		System.out.println("***********************************************");
 		for (Integer i : movieRec.keySet()) {
 			if (rnd.nextInt(Properties.RANDOM_MAX) == 0)
-				if (ret.size() < Properties.MAX_NUM_LIST) {
-					System.out.println("getMovieList: "
-							+ id2Movie.get(i).getMid() + " "
-							+ id2Movie.get(i).toString());
-					ret.add(id2Movie.get(i));
-				}
+				if (id2Movie.containsKey(i))
+					if (ret.size() < Properties.MAX_NUM_LIST) {
+						System.out.println("getMovieList: "
+								+ id2Movie.get(i).getMid() + " "
+								+ id2Movie.get(i).toString());
+						ret.add(id2Movie.get(i));
+					}
 		}
 		System.out.println("***********************************************");
 

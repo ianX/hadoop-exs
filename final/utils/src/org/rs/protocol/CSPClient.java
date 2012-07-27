@@ -76,6 +76,12 @@ public class CSPClient {
 			System.out.println(list.size());
 			list.addAll((Vector<Movie>) dataReader.readObject());
 
+			System.out.println("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
+			for (Movie m : list) {
+				System.out.println(m.getMid() + " " + m.toString());
+			}
+			System.out.println("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
+
 			if (!(mess = cmdReader.readLine()).equals(Commands.LIST_MOVIE_END)) {
 				System.out.println("LIST_MOVIE_END error:" + mess);
 				return -1;

@@ -145,7 +145,7 @@ public class MovieItem extends Group {
 		this.gui = gui;
 		this.movie = movie;
 
-		System.out.println("new item");
+		//System.out.println("new item");
 
 		if (!movie.isInited())
 			MovieDetailDetector.getMovieDetails(movie);

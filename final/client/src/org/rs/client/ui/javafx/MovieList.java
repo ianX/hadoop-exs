@@ -24,13 +24,13 @@ public class MovieList extends Parent implements ListChangeListener<Node> {
 
 	public MovieList(final GUI gui) {
 		this.gui = gui;
-		System.out.println("movielist start");
+		// System.out.println("movielist start");
 
 		DropShadow shadow = new DropShadow();
 
 		this.setEffect(shadow);
 
-		System.out.println("movielist end");
+		// System.out.println("movielist end");
 		hbox.getChildren().addListener(this);
 		hbox.setAlignment(Pos.TOP_LEFT);
 
@@ -53,13 +53,14 @@ public class MovieList extends Parent implements ListChangeListener<Node> {
 		while (c.next()) {
 			if (c.wasAdded())
 				return;
-		}
-		synchronized (this) {
-			Movie movie;
-			while (hbox.getChildren().size() < SHOW_SIZE
-					&& (movie = gui.nextMovie()) != null) {
-				System.out.println("add movie:" + movie.toString());
-				hbox.getChildren().add(new MovieItem(movie, gui));
+
+			synchronized (this) {
+				Movie movie;
+				while (hbox.getChildren().size() < SHOW_SIZE
+						&& (movie = gui.nextMovie()) != null) {
+					// System.out.println("add movie:" + movie.toString());
+					hbox.getChildren().add(new MovieItem(movie, gui));
+				}
 			}
 		}
 	}

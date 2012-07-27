@@ -15,16 +15,16 @@ public class RecMovieList extends Parent {
 	private class RecMovieListUpdater implements Runnable {
 		@Override
 		public void run() {
-			System.out.println("RecMovieListUpdater running");
+			// System.out.println("RecMovieListUpdater running");
 			hbox.getChildren().clear();
 			List<Movie> recMovie = gui.getRecMovie();
-			System.out.println("RecMovie " + recMovie.size());
+			// System.out.println("RecMovie " + recMovie.size());
 			for (Movie m : recMovie) {
-				System.out.println(m.getName() + "to " + m.toString()
-						+ " id : " + m.getMid());
+				// System.out.println(m.getName() + "to " + m.toString()
+				// + " id : " + m.getMid());
 				hbox.getChildren().add(new MovieItem(m, gui));
 			}
-			System.out.println("RecMovieListUpdater end");
+			// System.out.println("RecMovieListUpdater end");
 		}
 	}
 

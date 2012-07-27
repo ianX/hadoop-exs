@@ -49,7 +49,7 @@ public class MovieDetailDetector {
 			movie.setMovieURL(movieUrl);
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
-			e.printStackTrace();
+			// e.printStackTrace();
 			movie.setMovieURL("");
 			movie.setImageURL("");
 		}
@@ -59,7 +59,7 @@ public class MovieDetailDetector {
 	public static void getProperties(Movie movie) {
 		try {
 			String movieUrl = movie.getMovieURL();
-			System.out.println(movieUrl);
+			// System.out.println(movieUrl);
 			HttpURLConnection con = (HttpURLConnection) new URL(movieUrl)
 					.openConnection();
 			con.setInstanceFollowRedirects(false);
@@ -84,7 +84,7 @@ public class MovieDetailDetector {
 
 			movie.setProperties(properties.toArray(new String[0]));
 		} catch (Exception e) {
-			e.printStackTrace();
+			// e.printStackTrace();
 			movie.setProperties(new String[0]);
 		}
 	}

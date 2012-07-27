@@ -32,10 +32,13 @@ public class MasterDataCombiner implements DataCombiner {
 
 		double total = 0;
 		for (int i = 0; i < movieVectors.size(); i++) {
-			System.out.println(movieVectors.get(i).size());
-			multiplyVec(movieVectors.get(i), counts.get(i));
+			List<Double> list = movieVectors.get(i);
+			if (list.get(0).isNaN())
+				continue;
+			System.out.println(list.size());
+			multiplyVec(list, counts.get(i));
 			total += counts.get(i);
-			addVec(ret, movieVectors.get(i));
+			addVec(ret, list);
 		}
 		// calc average
 		multiplyVec(ret, 1 / total);

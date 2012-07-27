@@ -172,10 +172,10 @@ public class Client implements UIEventListener {
 		if (!this.connected)
 			this.notConnected(ui);
 		recMovie = handler.getRecMovie(recMovie);
-		System.out.println("recMovie: " + recMovie.size());
+		// System.out.println("recMovie: " + recMovie.size());
 		for (Movie m : recMovie) {
 			movieMap.put(m.getMid(), m);
-			System.out.println(m.getMid() + " " + m.toString());
+			// System.out.println(m.getMid() + " " + m.toString());
 		}
 		ui.printRecMovie(recMovie);
 	}

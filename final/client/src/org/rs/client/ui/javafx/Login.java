@@ -55,9 +55,9 @@ public class Login extends Parent {
 					synchronized (mutex) {
 						while (!gui.getState().equals(GUI.State.CONNECTED)) {
 							try {
-								System.out.println("start waiting");
+								//System.out.println("start waiting");
 								mutex.wait();
-								System.out.println("start changing");
+								//System.out.println("start changing");
 							} catch (InterruptedException e) {
 								e.printStackTrace();
 							}

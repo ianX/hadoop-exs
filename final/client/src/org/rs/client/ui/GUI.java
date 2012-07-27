@@ -31,11 +31,11 @@ import org.rs.object.Movie;
 import org.rs.object.User;
 
 public class GUI extends UI {
-	
+
 	public enum State {
 		LOGIN, CONNECTED, MOVIE_LIST, REC_MOVIE, REC_USER, ERROR
 	}
-	
+
 	private Group root;
 
 	private Login login;
@@ -88,7 +88,7 @@ public class GUI extends UI {
 	}
 
 	public void setMessage(String message) {
-		System.out.println(message);
+		// System.out.println(message);
 		this.message = message;
 	}
 
@@ -218,6 +218,8 @@ public class GUI extends UI {
 
 	private void reLayout(double x, double y) {
 
+		errorPane.setScaleX(x / 800);
+		errorPane.setScaleY(y / 600);
 		background.relocate(x - 800, y - 600);
 		if (state.equals(State.LOGIN))
 			return;
@@ -304,8 +306,8 @@ public class GUI extends UI {
 				synchronized (listMutex) {
 					size = movieList.size();
 					if (size - movieiter < 10) {
-						System.out.println(size + "!!!!!!!!!!!!!!!!!!!!!!"
-								+ movieiter);
+						// System.out.println(size + "!!!!!!!!!!!!!!!!!!!!!!"
+						// + movieiter);
 						cmdList();
 					}
 					while (size - movieiter < 10)
@@ -313,7 +315,7 @@ public class GUI extends UI {
 							listMutex.wait();
 							size = movieList.size();
 						} catch (InterruptedException e) {
-							e.printStackTrace();
+							// e.printStackTrace();
 						}
 				}
 
@@ -330,6 +332,16 @@ public class GUI extends UI {
 						listMutex.notifyAll();
 					}
 				}
+
+				synchronized (recMovieMutex) {
+					for (Movie m : recMovie) {
+						if (!m.isInited())
+							MovieDetailDetector.getMovieDetails(m);
+						if (m.getProperties() == null)
+							MovieDetailDetector.getProperties(m);
+					}
+				}
+
 				try {
 					Thread.sleep(300);
 				} catch (InterruptedException e) {
@@ -340,21 +352,26 @@ public class GUI extends UI {
 	}
 
 	public Movie nextMovie() {
-		System.out.println("next movie");
+		// System.out.println("next movie");
 		synchronized (listMutex) {
 			while (movieiter >= movieList.size()) {
 				try {
 					listMutex.wait();
 				} catch (InterruptedException e) {
-					e.printStackTrace();
+					// e.printStackTrace();
 				}
 			}
 		}
 
 		Movie ret = null;
 		synchronized (listMutex) {
-			if (movieiter < movieList.size())
+			if (movieiter < movieList.size()) {
 				ret = movieList.get(movieiter++);
+				// System.out.println("@@@@@@@@@@@@@@@@@@@@@@@@@@@");
+				// System.out.println(ret.getMid() + " " + ret.toString() + " "
+				// + movieiter);
+				// System.out.println("@@@@@@@@@@@@@@@@@@@@@@@@@@@");
+			}
 		}
 		return ret;
 	}
@@ -382,8 +399,14 @@ public class GUI extends UI {
 	public void printMovieList(List<Movie> list) {
 		synchronized (listMutex) {
 			movieList.addAll(list);
-			System.out.println("print movie list : " + movieList.size() + "  "
-					+ movieiter + " " + list.size());
+			// System.out.println("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$");
+			// for (Movie m : list) {
+			// System.out.println(m.getMid() + " " + m.toString());
+			// }
+			// System.out.println("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$");
+			// System.out.println("print movie list : " + movieList.size() +
+			// "  "
+			// + movieiter + " " + list.size());
 			listMutex.notifyAll();
 		}
 	}

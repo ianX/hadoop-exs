@@ -14,14 +14,14 @@ public class RecUserList extends Parent {
 	private class RecUserListUpdater implements Runnable {
 		@Override
 		public void run() {
-			System.out.println("RecUserListUpdater running");
+			// System.out.println("RecUserListUpdater running");
 			hbox.getChildren().clear();
 			List<User> recUser = gui.getRecUser();
 			for (User u : recUser) {
-				System.out.println(u.toString());
+				// System.out.println(u.toString());
 				hbox.getChildren().add(new UserItem(u, gui));
 			}
-			System.out.println("RecUserListUpdater end");
+			// System.out.println("RecUserListUpdater end");
 		}
 	}
 

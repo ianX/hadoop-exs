@@ -10,6 +10,7 @@ public class Properties {
 	public final static long NODE_DEAD = 5000;
 	public final static long SLEEP_TIME = 1000;
 	public final static long WAITE_TIME = 1000;
+	public final static long SLAVE_RECOVERED = 60000;
 	public final static int MASTER_PORT = 40030;
 	public final static int SLAVE_PORT = 40035;
 	public final static int ADD_FILES = 0;

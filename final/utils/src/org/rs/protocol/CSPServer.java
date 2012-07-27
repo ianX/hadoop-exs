@@ -76,6 +76,14 @@ public class CSPServer {
 			System.out.println("starting");
 			// dataWriter.reset();
 			System.out.println(list.size());
+
+			System.out.println("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
+			for (Movie m : list) {
+				System.out.println(m.getMid() + " " + m.toString());
+			}
+			System.out.println("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
+
+			dataWriter.reset();
 			dataWriter.writeObject(list);
 			dataWriter.flush();
 

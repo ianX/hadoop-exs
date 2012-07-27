@@ -7,6 +7,8 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.Map;
 import java.util.Set;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.Vector;
 
 public class SSPServerControl implements Runnable {
@@ -17,6 +19,7 @@ public class SSPServerControl implements Runnable {
 		private ObjectInputStream ois;
 		private ObjectOutputStream oos;
 		private NodeStatus node;
+		private Timer timer = new Timer();
 
 		public SlaveConnectHandler(Socket socket) {
 			this.socket = socket;
@@ -27,6 +30,7 @@ public class SSPServerControl implements Runnable {
 				node.setAlive(false);
 				try {
 					System.out.println("node : " + node.getNodeId() + " dead");
+					timer.cancel();
 					node.getOos().close();
 					this.ois.close();
 					this.socket.close();
@@ -80,6 +84,13 @@ public class SSPServerControl implements Runnable {
 						}
 					}
 					node.setAlive(true);
+					timer.schedule(new TimerTask() {
+
+						@Override
+						public void run() {
+							removeMarkedFiles();
+						}
+					}, Properties.SLAVE_RECOVERED);
 				} else {
 					node = new NodeStatus(nodeid, oos);
 					nodeStatus.put(nodeid, node);

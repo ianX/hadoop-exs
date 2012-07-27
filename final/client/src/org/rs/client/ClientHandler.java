@@ -122,7 +122,7 @@ public class ClientHandler implements ClientHandlerInterface {
 		if (userRating.containsKey(movie))
 			return -1;
 		userRating.put(movie, rating);
-		System.out.println(movie.getName() + " " + movie.getMid());
+		// System.out.println(movie.getName() + " " + movie.getMid());
 		cprotocol.addRating(movie, rating, cmdReader, cmdWriter, dataWriter,
 				dataReader);
 		return 0;

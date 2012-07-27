@@ -29,8 +29,8 @@ public class CLI extends UI implements Runnable {
 			}
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
-			e.printStackTrace();
-			System.out.println("cmdreader err, quiting");
+			// e.printStackTrace();
+			// System.out.println("cmdreader err, quiting");
 			notifyListener(this, false, EventType.COLSE, null);
 		}
 	}

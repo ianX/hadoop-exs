@@ -335,6 +335,11 @@ public class ServerMaster implements Master {
 				ret.addAll(handler.getRet());
 			}
 		}
+		System.out.println("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$");
+		for (Movie m : ret) {
+			System.out.println(m.getMid() + " " + m.toString());
+		}
+		System.out.println("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$");
 		System.out.println("master: end get movie list");
 	}
 
